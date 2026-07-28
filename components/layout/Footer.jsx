@@ -143,7 +143,7 @@ export default function Footer() {
         {/* Bottom Bar */}
         <div className="border-t border-white/10 mt-10 pt-8 flex flex-col md:flex-row justify-between items-center text-sm text-gray-400">
           <p>
-            &copy; {currentYear} The Djembe Circle. All rights reserved povered by WURQ PROJECTS PRIVATE LIMITED.
+            &copy; {currentYear} The Djembe Circle. All rights reserved powered by WURQ PROJECTS PRIVATE LIMITED.
           </p>
           <div className="flex items-center space-x-4 mt-4 md:mt-0">
             <Link href="/privacy" className="hover:text-white transition-colors duration-300">
@@ -158,6 +158,21 @@ export default function Footer() {
               Sitemap
             </Link>
           </div>
+        </div>
+
+        {/* Developed By Section */}
+        <div className="mt-6 pt-4 border-t border-white/5 text-center">
+          <p className="text-xs text-gray-500">
+            Developed by{' '}
+            <a 
+              href="https://www.enfynex.com/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-primary hover:text-primary/80 transition-colors duration-300 font-medium"
+            >
+              ENFYNEX 
+            </a>
+          </p>
         </div>
       </div>
     </footer>
