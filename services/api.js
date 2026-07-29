@@ -1,6 +1,7 @@
 import API_ENDPOINTS from './endpoints';
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+// const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://service.thedjembecircle.com/api';
 
 class ApiService {
   constructor() {
