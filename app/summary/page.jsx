@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import Script from "next/script";
 import {
   FaCalendar,
   FaClock,
@@ -18,6 +19,7 @@ import {
 } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import ApiService from '@/services/api';
+import { loadRazorpay } from '../../components/layout/loadRazorPay';
 
 export default function Summary() {
   const router = useRouter();
@@ -132,11 +134,18 @@ export default function Summary() {
               toast.success('Payment successful!');
               // Clear temp booking
               localStorage.removeItem('tempBooking');
-              // Redirect to success page
-              router.push(`/payment-success?orderId=${orderData.id}`);
             } else {
               throw new Error(verifyResponse.message || 'Payment verification failed');
             }
+            // Redirect to result page
+            console.log("verifyResponse:::",verifyResponse.data)
+            const params = new URLSearchParams({
+              orderId: orderData.id,
+              verificationResult: verifyResponse.success.toString(),
+            });
+
+            router.push(`/success?${params.toString()}`);
+
           } catch (error) {
             console.error('Verification error:', error);
             toast.error(error.message || 'Payment verification failed');
@@ -159,8 +168,16 @@ export default function Summary() {
         },
       };
 
+      const loaded = await loadRazorpay();
+
+      if (!loaded) {
+        toast.error("Failed to load Razorpay SDK");
+        return;
+      }
+
       const razorpay = new window.Razorpay(options);
       razorpay.open();
+
     } catch (error) {
       console.error('Payment flow error:', error);
       toast.error(error.message || 'Failed to initiate payment');
