@@ -215,6 +215,42 @@ class ApiService {
       includeAuth: false,
     });
   }
+
+  // ========== BLOG ==========
+  getBlogs(filters = {}) {
+    return this.request(API_ENDPOINTS.BLOG.GET_ALL, { params: filters, includeAuth: false });
+  }
+
+  getBlogBySlug(slug) {
+    const endpoint = API_ENDPOINTS.BLOG.GET_BY_SLUG.replace(':slug', slug);
+    return this.request(endpoint, { includeAuth: false });
+  }
+
+  // Admin blog methods (you can add if needed)
+  createBlog(data) {
+    return this.request(API_ENDPOINTS.BLOG.CREATE, { method: 'POST', body: data });
+  }
+
+  updateBlog(id, data) {
+    const endpoint = API_ENDPOINTS.BLOG.UPDATE.replace(':id', id);
+    return this.request(endpoint, { method: 'PUT', body: data });
+  }
+
+  deleteBlog(id) {
+    const endpoint = API_ENDPOINTS.BLOG.DELETE.replace(':id', id);
+    return this.request(endpoint, { method: 'DELETE' });
+  }
+
+  // ========== LEAD ==========
+  submitLead(data) {
+    return this.request(API_ENDPOINTS.LEADS.SUBMIT, { method: 'POST', body: data, includeAuth: false });
+  }
+
+  // Request refund (user)
+requestRefund(orderId) {
+  const endpoint = API_ENDPOINTS.ORDERS.REFUND.replace(':orderId',orderId);
+  return this.request(endpoint, {method: 'POST'});
+}
 }
 
 export default new ApiService();

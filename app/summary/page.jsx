@@ -138,7 +138,7 @@ export default function Summary() {
               throw new Error(verifyResponse.message || 'Payment verification failed');
             }
             // Redirect to result page
-            console.log("verifyResponse:::",verifyResponse.data)
+
             const params = new URLSearchParams({
               orderId: orderData.id,
               verificationResult: verifyResponse.success.toString(),

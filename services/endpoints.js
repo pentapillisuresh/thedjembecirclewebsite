@@ -29,6 +29,7 @@ export const API_ENDPOINTS = {
     CREATE: '/orders/create',      // POST /api/orders/create
     GET_BY_ID: '/orders/:orderId', // GET /api/orders/:orderId
     CANCEL: '/orders/:orderId/cancel', // PUT /api/orders/:orderId/cancel
+    REFUND: '/orders/:orderId/refund',
   },
 
   // Payment
@@ -48,6 +49,22 @@ export const API_ENDPOINTS = {
   CONTACT: {
     SEND: '/contact',              // POST /api/contact (if defined)
   },
+
+  // Blog
+BLOG: {
+  GET_ALL: '/blog',
+  GET_BY_SLUG: '/blog/:slug',
+  CREATE: '/admin/blog',
+  UPDATE: '/admin/blog/:id',
+  DELETE: '/admin/blog/:id',
+  GET_ALL_ADMIN: '/admin/blog',
+},
+
+// Leads (public)
+LEADS: {
+  SUBMIT: '/leads',
+  // admin endpoints omitted – usually only used in admin panel
+}
 };
 
 export default API_ENDPOINTS;

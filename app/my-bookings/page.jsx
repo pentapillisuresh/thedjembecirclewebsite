@@ -323,7 +323,7 @@ export default function MyBookings() {
                       )}
                       {booking.status === 'paid' && (
                         <Link
-                          href={`/booking-details/${booking.id}`}
+                          href={`/my-bookings/${booking.id}`}
                           className="flex items-center gap-2 px-4 py-2 text-sm border border-white/20 text-white hover:border-primary/50 transition-all duration-300"
                         >
                           <FaTicketAlt />

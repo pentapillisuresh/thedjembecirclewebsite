@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState,useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
@@ -13,6 +13,10 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ phone: '', pin: '' });
   const { login:userLogin } = useAuth();
+
+  useEffect(() => {
+   localStorage.clear();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault(); // ensure e is defined
