@@ -8,7 +8,13 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'i.ytimg.com',
       },
+      // Allow any HTTPS hostname (use cautiously)
+      {
+        protocol: 'https',
+        hostname: '**',
+      },
     ],
-  },};
+  },
+};
 
 export default nextConfig;
