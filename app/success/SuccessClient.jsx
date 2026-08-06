@@ -46,6 +46,8 @@ export default function SuccessClient() {
     fetchOrder();
   }, [orderId, router]);
 
+  
+
   // Format date and time
   const formatDate = (dateString) => {
     if (!dateString) return 'TBD';
