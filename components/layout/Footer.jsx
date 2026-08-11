@@ -126,9 +126,14 @@ export default function Footer() {
               </li>
               <li className="flex items-center space-x-3">
                 <FaEnvelope className="text-primary flex-shrink-0" />
-                <a href="mailto:thedjembecircle2018@gmail.com" className="hover:text-white transition-colors duration-300">
-                  thedjembecircle2018@gmail.com
-                </a>
+                <div className="flex flex-col">
+                  <a href="mailto:info@thedjembecircle.com" className="hover:text-white transition-colors duration-300">
+                    info@thedjembecircle.com
+                  </a>
+                  <a href="mailto:thedjembecircle2018@gmail.com" className="hover:text-white transition-colors duration-300 text-xs text-gray-500 mt-1">
+                    thedjembecircle2018@gmail.com
+                  </a>
+                </div>
               </li>
               <li className="flex items-center space-x-3">
                 <FaPhone className="text-primary flex-shrink-0" />
@@ -143,20 +148,33 @@ export default function Footer() {
         {/* Bottom Bar */}
         <div className="border-t border-white/10 mt-10 pt-8 flex flex-col md:flex-row justify-between items-center text-sm text-gray-400">
           <p>
-            &copy; {currentYear} The Djembe Circle. All rights reserved povered by WURQ PROJECTS PRIVATE LIMITED.
+            &copy; {currentYear} The Djembe Circle. All rights reserved. Powered by WURQ PROJECTS PRIVATE LIMITED.
           </p>
-          <div className="flex items-center space-x-4 mt-4 md:mt-0">
-            <Link href="/privacy" className="hover:text-white transition-colors duration-300">
-              Privacy
-            </Link>
-            <span className="text-white/20">|</span>
-            <Link href="/terms" className="hover:text-white transition-colors duration-300">
-              Terms
-            </Link>
-            <span className="text-white/20">|</span>
-            <Link href="/sitemap" className="hover:text-white transition-colors duration-300">
-              Sitemap
-            </Link>
+          <div className="flex flex-col md:flex-row items-center space-y-2 md:space-y-0 md:space-x-4 mt-4 md:mt-0">
+            <span className="text-xs text-gray-500">
+              Developed by <a 
+                href="https://enfynex.com" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="text-primary hover:text-primary/80 transition-colors duration-300 font-semibold"
+              >
+                ENFYNEX
+              </a>
+            </span>
+            <span className="text-white/20 hidden md:inline">|</span>
+            <div className="flex items-center space-x-4">
+              <Link href="/privacy" className="hover:text-white transition-colors duration-300">
+                Privacy
+              </Link>
+              <span className="text-white/20">|</span>
+              <Link href="/terms" className="hover:text-white transition-colors duration-300">
+                Terms
+              </Link>
+              <span className="text-white/20">|</span>
+              <Link href="/sitemap" className="hover:text-white transition-colors duration-300">
+                Sitemap
+              </Link>
+            </div>
           </div>
         </div>
       </div>

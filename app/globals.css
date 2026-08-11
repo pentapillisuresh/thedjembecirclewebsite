@@ -8,25 +8,35 @@
   * {
     @apply scroll-smooth;
   }
-  
-  body {
-    @apply bg-black text-white font-sans antialiased;
+
+  html {
+    @apply overflow-x-hidden;
   }
-  
+
+  body {
+    @apply bg-black text-white font-sans antialiased overflow-x-hidden;
+    margin: 0;
+  }
+
   ::selection {
     @apply bg-primary text-white;
   }
-  
+
   ::-webkit-scrollbar {
     @apply w-2;
   }
-  
+
   ::-webkit-scrollbar-track {
     @apply bg-black;
   }
-  
+
   ::-webkit-scrollbar-thumb {
     @apply bg-primary rounded-full;
+  }
+
+  /* Hide horizontal scrollbar */
+  ::-webkit-scrollbar:horizontal {
+    display: none;
   }
 }
 
@@ -34,31 +44,37 @@
   .glass-card {
     @apply bg-black/60 backdrop-blur-md border border-white/10 rounded-2xl shadow-xl;
   }
-  
+
   .btn-primary {
     @apply bg-primary hover:bg-primary/80 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg shadow-primary/30;
   }
-  
+
   .btn-secondary {
     @apply bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-300;
   }
-  
+
   .input-dark {
     @apply w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-primary transition-all duration-300;
   }
-  
+
   .section-title {
     @apply text-3xl md:text-4xl font-bold text-center;
   }
-  
+
   .section-subtitle {
     @apply text-gray-400 text-center mt-2 max-w-2xl mx-auto;
   }
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
 }
 
 .animate-float {

@@ -15,10 +15,13 @@ import {
   FaPlus,
   FaMinus,
   FaSpinner,
+  FaCheckCircle,
+  FaUserCircle,
 } from 'react-icons/fa';
 import { useAuth } from '@/lib/auth';
 import ApiService from '@/services/api';
 import toast from 'react-hot-toast';
+import { loadRazorpay } from '../../components/layout/loadRazorPay';
 
 export default function Booking() {
   const { user } = useAuth();
@@ -27,6 +30,8 @@ export default function Booking() {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [processingPayment, setProcessingPayment] = useState(false);
+  const [selectedTicketClass, setSelectedTicketClass] = useState(null);
   const [form, setForm] = useState({
     eventId: '',
     fullName: '',
@@ -54,6 +59,10 @@ export default function Booking() {
           // Auto-select the first event
           const firstEvent = data.data[0];
           setSelectedEvent(firstEvent);
+          // Auto-select first ticket class
+          if (firstEvent.ticketClasses && firstEvent.ticketClasses.length > 0) {
+            setSelectedTicketClass(firstEvent.ticketClasses[0]);
+          }
           setForm((prev) => ({
             ...prev,
             eventId: firstEvent.id,
@@ -76,10 +85,11 @@ export default function Booking() {
   // Populate user info when available
   useEffect(() => {
     if (user) {
+      console.log('User data:', user);
       setForm((prev) => ({
         ...prev,
-        fullName: user.fullName || user.name || '',
-        mobile: user.phone || user.mobile || '',
+        fullName: user.fullName || user.name || user.username || '',
+        mobile: user.phone || user.mobile || user.phoneNumber || '',
         email: user.email || '',
       }));
     }
@@ -90,37 +100,142 @@ export default function Booking() {
     if (form.eventId && events.length > 0) {
       const event = events.find((e) => e.id === form.eventId);
       setSelectedEvent(event || null);
+      // Update ticket class when event changes
+      if (event && event.ticketClasses && event.ticketClasses.length > 0) {
+        setSelectedTicketClass(event.ticketClasses[0]);
+      }
     }
   }, [form.eventId, events]);
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!selectedEvent) {
-      toast.error('Please select an event');
+  // Handle payment
+ // Handle payment
+const handlePayment = async (e) => {
+  e.preventDefault();
+  
+  if (!selectedEvent) {
+    toast.error('Please select an event');
+    return;
+  }
+
+  if (!selectedTicketClass) {
+    toast.error('Please select a ticket class');
+    return;
+  }
+
+  if (!form.fullName || !form.mobile || !form.email) {
+    toast.error('Please fill in all required fields');
+    return;
+  }
+
+  setProcessingPayment(true);
+
+  try {
+    // 1. Create internal order
+    const orderPayload = {
+      eventId: selectedEvent.id,
+      items: [
+        {
+          ticketClassId: selectedTicketClass.id,
+          quantity: form.tickets,
+        },
+      ],
+      customerDetails: {
+        fullName: form.fullName,
+        mobile: form.mobile,
+        email: form.email,
+      },
+    };
+
+    const orderResponse = await ApiService.createOrder(orderPayload);
+
+    if (!orderResponse.success) {
+      throw new Error(orderResponse.message || 'Order creation failed');
+    }
+
+    const orderData = orderResponse.data;
+
+    // 2. Create Razorpay order
+    const razorpayPayload = { orderId: orderData.id };
+    const razorpayResponse = await ApiService.createRazorpayOrder(razorpayPayload);
+
+    if (!razorpayResponse.success) {
+      throw new Error(razorpayResponse.message || 'Razorpay order creation failed');
+    }
+
+    const { razorpayOrderId, amount, key } = razorpayResponse.data;
+
+    // 3. Open Razorpay checkout
+    const options = {
+      key: key || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+      amount: amount * 100, // in paise
+      currency: 'INR',
+      name: 'THE DJEMBE CIRCLE',
+      description: `Booking: ${selectedEvent.title}`,
+      order_id: razorpayOrderId,
+      handler: async function (response) {
+        // 4. Verify payment
+        try {
+          const verifyPayload = {
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature,
+          };
+          const verifyResponse = await ApiService.verifyPayment(verifyPayload);
+
+          if (verifyResponse.success) {
+            toast.success('Payment successful! 🎉');
+            // Redirect to success page with the actual payment ID
+            const params = new URLSearchParams({
+              orderId: orderData.id,
+              eventId: selectedEvent.id,
+              tickets: form.tickets,
+              payment_id: response.razorpay_payment_id, // FIXED: Use actual payment ID
+              payment_status: 'success',
+            });
+            router.push(`/success?${params.toString()}`);
+          } else {
+            throw new Error(verifyResponse.message || 'Payment verification failed');
+          }
+        } catch (error) {
+          console.error('Verification error:', error);
+          toast.error(error.message || 'Payment verification failed');
+          router.push(`/payment-failed?orderId=${orderData.id}`);
+        }
+        setProcessingPayment(false);
+      },
+      modal: {
+        ondismiss: function () {
+          toast.error('Payment cancelled');
+          setProcessingPayment(false);
+        },
+      },
+      prefill: {
+        name: form.fullName,
+        email: form.email,
+        contact: form.mobile,
+      },
+      theme: {
+        color: '#FF6B35', // primary color
+      },
+    };
+
+    const loaded = await loadRazorpay();
+
+    if (!loaded) {
+      toast.error("Failed to load payment gateway");
+      setProcessingPayment(false);
       return;
     }
 
-    // Get ticket price (use first ticket class price or show 0)
-    const ticketPrice =
-      selectedEvent.ticketClasses && selectedEvent.ticketClasses.length > 0
-        ? selectedEvent.ticketClasses[0].price
-        : 0;
+    const razorpay = new window.Razorpay(options);
+    razorpay.open();
 
-    const bookingData = {
-      ...form,
-      eventId: selectedEvent.id,
-      eventTitle: selectedEvent.title,
-      eventDate: selectedEvent.date,
-      eventVenue: selectedEvent.venue,
-      ticketPrice,
-      totalAmount: ticketPrice * form.tickets,
-      // store full event object if needed
-      event: selectedEvent,
-    };
-
-    localStorage.setItem('tempBooking', JSON.stringify(bookingData));
-    router.push('/summary');
-  };
+  } catch (error) {
+    console.error('Payment flow error:', error);
+    toast.error(error.message || 'Failed to initiate payment');
+    setProcessingPayment(false);
+  }
+};
 
   const updateTickets = (change) => {
     const newValue = form.tickets + change;
@@ -162,11 +277,8 @@ export default function Booking() {
   };
 
   // Get the first ticket class price (for total calculation)
-  const getBasePrice = (event) => {
-    if (!event || !event.ticketClasses || event.ticketClasses.length === 0) {
-      return 0;
-    }
-    return event.ticketClasses[0].price;
+  const getBasePrice = () => {
+    return selectedTicketClass?.price || 0;
   };
 
   if (!user) return null;
@@ -205,7 +317,7 @@ export default function Booking() {
       <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 blur-3xl"></div>
       <div className="absolute bottom-0 left-0 w-72 h-72 bg-purple-500/5 blur-3xl"></div>
 
-      <div className="max-w-4xl mx-auto relative z-10">
+      <div className="max-w-6xl mx-auto relative z-10">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -226,16 +338,16 @@ export default function Booking() {
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Form */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+          {/* Form - Takes 3 columns */}
           <motion.div
             initial={{ opacity: 0, x: -30 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6 }}
-            className="lg:col-span-2 border border-white/10 bg-white/5 backdrop-blur-sm p-8"
+            className="lg:col-span-3 border border-white/10 bg-white/5 backdrop-blur-sm p-8"
           >
             <h2 className="text-2xl font-bold text-white mb-6">Booking Details</h2>
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handlePayment} className="space-y-5">
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Select Event
@@ -253,6 +365,31 @@ export default function Booking() {
                   ))}
                 </select>
               </div>
+
+              {selectedEvent && selectedEvent.ticketClasses && selectedEvent.ticketClasses.length > 1 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Select Ticket Class
+                  </label>
+                  <select
+                    value={selectedTicketClass?.id || ''}
+                    onChange={(e) => {
+                      const cls = selectedEvent.ticketClasses.find(
+                        (c) => c.id === parseInt(e.target.value)
+                      );
+                      setSelectedTicketClass(cls);
+                    }}
+                    className="w-full bg-black/50 border border-white/10 px-4 py-3 text-white focus:outline-none focus:border-primary/50 transition-colors duration-300 appearance-none"
+                    required
+                  >
+                    {selectedEvent.ticketClasses.map((cls) => (
+                      <option key={cls.id} value={cls.id} className="bg-black">
+                        {cls.name} - ₹{cls.price}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -352,72 +489,140 @@ export default function Booking() {
 
               <button
                 type="submit"
-                className="w-full flex items-center justify-center px-6 py-3 bg-primary text-white font-semibold hover:bg-primary/80 transition-all duration-300 hover:scale-[1.02] shadow-lg shadow-primary/30 group"
+                disabled={processingPayment}
+                className="w-full flex items-center justify-center px-6 py-3 bg-primary text-white font-semibold hover:bg-primary/80 transition-all duration-300 hover:scale-[1.02] shadow-lg shadow-primary/30 disabled:opacity-50 disabled:cursor-not-allowed group"
               >
-                Continue to Summary
-                <FaArrowRight className="ml-2 group-hover:translate-x-1 transition-transform duration-300" />
+                {processingPayment ? (
+                  <>
+                    <FaSpinner className="animate-spin mr-2" />
+                    Processing Payment...
+                  </>
+                ) : (
+                  <>
+                    Pay & Book Now
+                    <FaArrowRight className="ml-2 group-hover:translate-x-1 transition-transform duration-300" />
+                  </>
+                )}
               </button>
+
+              <div className="flex items-center justify-center gap-4 text-xs text-gray-500">
+                <div className="flex items-center gap-1">
+                  <FaCheckCircle className="text-green-500" />
+                  <span>Secure Payment</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <FaCheckCircle className="text-green-500" />
+                  <span>Instant Confirmation</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <FaCheckCircle className="text-green-500" />
+                  <span>Free Cancellation</span>
+                </div>
+              </div>
             </form>
           </motion.div>
 
-          {/* Event Preview */}
+          {/* Event Preview - Takes 2 columns */}
           <motion.div
             initial={{ opacity: 0, x: 30 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6 }}
-            className="border border-white/10 bg-white/5 backdrop-blur-sm p-6 h-fit sticky top-24"
+            className="lg:col-span-2"
           >
-            <h3 className="text-xl font-bold text-white mb-4">Event Summary</h3>
+            <div className="border border-white/10 bg-white/5 backdrop-blur-sm p-6 h-fit sticky top-24">
+              <h3 className="text-xl font-bold text-white mb-4">Booking Summary</h3>
 
-            {selectedEvent ? (
-              <div className="space-y-4">
-                <div>
-                  <p className="text-xs text-gray-500 uppercase tracking-wider">Event</p>
-                  <p className="text-white font-semibold">{selectedEvent.title}</p>
-                </div>
-
-                <div className="flex items-center gap-3 text-gray-300">
-                  <FaCalendar className="text-primary" />
-                  <span className="text-sm">{formatDate(selectedEvent.date)}</span>
-                </div>
-
-                <div className="flex items-center gap-3 text-gray-300">
-                  <FaClock className="text-primary" />
-                  <span className="text-sm">{formatTime(selectedEvent.date)}</span>
-                </div>
-
-                <div className="flex items-center gap-3 text-gray-300">
-                  <FaMapMarkerAlt className="text-primary" />
-                  <span className="text-sm">{selectedEvent.venue || 'TBD'}</span>
-                </div>
-
-                <div className="border-t border-white/10 pt-4">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">Price per ticket</span>
-                    <span className="text-white font-semibold">
-                      {getTicketPrice(selectedEvent)}
-                    </span>
+              {selectedEvent ? (
+                <div className="space-y-4">
+                  {/* Event Details */}
+                  <div className="border-b border-white/10 pb-4">
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Event Details</p>
+                    <p className="text-white font-semibold">{selectedEvent.title}</p>
                   </div>
-                  <div className="flex justify-between text-sm mt-2">
-                    <span className="text-gray-400">Tickets</span>
-                    <span className="text-white font-semibold">× {form.tickets}</span>
-                  </div>
-                  <div className="flex justify-between text-lg font-bold mt-3 pt-3 border-t border-white/10">
-                    <span className="text-gray-400">Total</span>
-                    <span className="text-primary">
-                      ₹{getBasePrice(selectedEvent) * form.tickets}
-                    </span>
-                  </div>
-                </div>
 
-                <div className="flex items-center gap-2 text-xs text-gray-500 mt-4">
-                  <FaWallet className="text-primary" />
-                  <span>Secure payment on next step</span>
+                  <div className="flex items-center gap-3 text-gray-300">
+                    <FaCalendar className="text-primary" />
+                    <span className="text-sm">{formatDate(selectedEvent.date)}</span>
+                  </div>
+
+                  <div className="flex items-center gap-3 text-gray-300">
+                    <FaClock className="text-primary" />
+                    <span className="text-sm">{formatTime(selectedEvent.date)}</span>
+                  </div>
+
+                  <div className="flex items-center gap-3 text-gray-300">
+                    <FaMapMarkerAlt className="text-primary" />
+                    <span className="text-sm">{selectedEvent.venue || 'TBD'}</span>
+                  </div>
+
+                  {/* User Details */}
+                  <div className="border-t border-white/10 pt-4 mt-4">
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-3">Customer Details</p>
+                    
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-3 text-gray-300">
+                        <FaUser className="text-primary text-sm" />
+                        <div>
+                          <p className="text-xs text-gray-500">Full Name</p>
+                          <p className="text-white text-sm font-medium">{form.fullName || 'Not provided'}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-3 text-gray-300">
+                        <FaPhone className="text-primary text-sm" />
+                        <div>
+                          <p className="text-xs text-gray-500">Mobile</p>
+                          <p className="text-white text-sm font-medium">{form.mobile || 'Not provided'}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-3 text-gray-300">
+                        <FaEnvelope className="text-primary text-sm" />
+                        <div>
+                          <p className="text-xs text-gray-500">Email</p>
+                          <p className="text-white text-sm font-medium">{form.email || 'Not provided'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Ticket Summary */}
+                  <div className="border-t border-white/10 pt-4 mt-4">
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-3">Ticket Summary</p>
+                    
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-400">Ticket Class</span>
+                      <span className="text-white font-semibold">
+                        {selectedTicketClass?.name || 'Standard'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm mt-2">
+                      <span className="text-gray-400">Price per ticket</span>
+                      <span className="text-white font-semibold">
+                        ₹{getBasePrice()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm mt-2">
+                      <span className="text-gray-400">Tickets</span>
+                      <span className="text-white font-semibold">× {form.tickets}</span>
+                    </div>
+                    <div className="flex justify-between text-lg font-bold mt-3 pt-3 border-t border-white/10">
+                      <span className="text-gray-400">Total Amount</span>
+                      <span className="text-primary">
+                        ₹{getBasePrice() * form.tickets}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 text-xs text-gray-500 mt-4 pt-3 border-t border-white/10">
+                    <FaWallet className="text-primary" />
+                    <span>Secure payment via Razorpay</span>
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <p className="text-gray-400 text-sm">Please select an event</p>
-            )}
+              ) : (
+                <p className="text-gray-400 text-sm">Please select an event</p>
+              )}
+            </div>
           </motion.div>
         </div>
       </div>

@@ -30,7 +30,9 @@ export default function UpcomingEvent() {
     };
   
     fetchUpcomingEvent();
-  }, []);  // Helper to format date and time
+  }, []);
+
+  // Helper to format date and time
   const formatDate = (dateString) => {
     if (!dateString) return '';
     const date = new Date(dateString);
@@ -123,7 +125,7 @@ export default function UpcomingEvent() {
           className="grid grid-cols-1 lg:grid-cols-2 gap-0 border border-white/10 bg-white/5 backdrop-blur-sm overflow-hidden hover:border-primary/30 transition-all duration-500"
         >
           {/* Left side - Image */}
-          <div className="relative h-[400px] lg:h-auto min-h-[400px] overflow-hidden">
+          <div className="relative h-[350px] lg:h-auto min-h-[350px] overflow-hidden">
             <Image
               src={event.bannerImage || '/images/event.jpg'}
               alt={event.title || 'Upcoming Event'}
@@ -141,19 +143,15 @@ export default function UpcomingEvent() {
           </div>
 
           {/* Right side - Content */}
-          <div className="p-8 md:p-12 flex flex-col justify-center">
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-2">
-              Upcoming Event
-            </h2>
+          <div className="p-6 md:p-10 flex flex-col justify-center">
+            {/* <div className="w-16 h-1 bg-primary mb-4"></div> */}
             
-            <div className="w-16 h-1 bg-primary mb-6"></div>
-            
-            <h3 className="text-2xl md:text-3xl font-bold text-primary mb-6">
+            <h3 className="text-2xl md:text-3xl font-bold text-primary mb-4">
               {event.title}
             </h3>
             
             {/* Event Details */}
-            <div className="space-y-4 mt-4">
+            <div className="space-y-3 mt-2">
               <div className="flex items-center space-x-4 text-gray-300 bg-white/5 p-3 border-l-4 border-primary/30 hover:border-primary transition-all duration-300">
                 <FaCalendar className="text-primary text-xl" />
                 <div>
@@ -179,41 +177,41 @@ export default function UpcomingEvent() {
               </div>
             </div>
             
-            <p className="text-gray-400 mt-6 text-lg leading-relaxed">
+            <p className="text-gray-400 mt-4 text-base leading-relaxed line-clamp-2">
               {event.description || 'Join us for an unforgettable drumming experience.'}
             </p>
             
-            <div className="mt-8">
+            <div className="mt-4">
               <div>
                 <p className="text-xs text-gray-500 uppercase tracking-wider">Price</p>
-                <p className="text-3xl font-bold text-primary">
+                <p className="text-2xl font-bold text-primary">
                   {event.ticketClasses ? getTicketPrice(event.ticketClasses) : 'TBD'}
                 </p>
-                <p className="text-sm text-gray-400">per person</p>
+                <p className="text-xs text-gray-400">per person</p>
               </div>
             </div>
             
-            <div className="mt-8 flex flex-col sm:flex-row gap-4">
+            <div className="mt-6 flex flex-col sm:flex-row gap-3">
               <Link 
                 href={`/booking?eventId=${event.id}`} 
-                className="inline-flex items-center justify-center px-8 py-3 bg-primary text-white font-semibold hover:bg-primary/80 transition-all duration-300 hover:scale-105 shadow-lg shadow-primary/30 group"
+                className="inline-flex items-center justify-center px-6 py-2.5 bg-primary text-white font-semibold hover:bg-primary/80 transition-all duration-300 hover:scale-105 shadow-lg shadow-primary/30 group text-sm"
               >
                 Reserve Your Spot
                 <FaArrowRight className="ml-2 group-hover:translate-x-1 transition-transform duration-300" />
               </Link>
               <Link 
                 href="/events" 
-                className="inline-flex items-center justify-center px-8 py-3 border border-white/20 text-white font-semibold hover:bg-white/5 transition-all duration-300 hover:border-primary/50"
+                className="inline-flex items-center justify-center px-6 py-2.5 border border-white/20 text-white font-semibold hover:bg-white/5 transition-all duration-300 hover:border-primary/50 text-sm"
               >
                 View All Events
               </Link>
             </div>
             
             {/* Social proof */}
-            <div className="mt-6 flex items-center space-x-4">
+            <div className="mt-4 flex items-center space-x-4">
               <div className="flex -space-x-2">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="w-8 h-8 rounded-full border-2 border-black bg-primary/30 flex items-center justify-center text-xs text-white font-bold">
+                  <div key={i} className="w-7 h-7 rounded-full border-2 border-black bg-primary/30 flex items-center justify-center text-xs text-white font-bold">
                     {String.fromCharCode(64 + i)}
                   </div>
                 ))}

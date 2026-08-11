@@ -3,18 +3,74 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { FaPlay, FaArrowRight } from 'react-icons/fa';
 import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
 
 export default function Hero() {
   const router = useRouter();
+  const [currentSlide, setCurrentSlide] = useState(0);
+
+  // Hero images for carousel
+  const slides = [
+    {
+      image: './images/banner1.JPG',
+      alt: 'Drumming event'
+    },
+    {
+      image: './images/banner2.JPG',
+      alt: 'Djembe circle'
+    },
+    {
+      image: './images/banner3.JPG',
+      alt: 'Music festival'
+    },
+   
+  ];
+
+  // Auto-slide every 5 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % slides.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [slides.length]);
+
+  const goToSlide = (index) => {
+    setCurrentSlide(index);
+  };
 
   return (
-    <section className="relative h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-purple-900 via-black to-indigo-900">
-      {/* Background Pattern/Overlay */}
-      <div className="absolute inset-0 bg-black/40" />
-      
-      {/* Decorative circles - works in all browsers */}
-      <div className="absolute top-20 left-10 w-64 h-64 bg-primary/10 rounded-full blur-3xl" />
-      <div className="absolute bottom-20 right-10 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl" />
+    <section className="relative h-screen flex items-center justify-center overflow-hidden">
+      {/* Background Image Carousel */}
+      {slides.map((slide, index) => (
+        <div
+          key={index}
+          className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
+            index === currentSlide ? 'opacity-100' : 'opacity-0'
+          }`}
+        >
+          <div
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+            style={{ backgroundImage: `url(${slide.image})` }}
+          />
+          <div className="absolute inset-0 bg-black/50" />
+        </div>
+      ))}
+
+      {/* Carousel Navigation Dots */}
+      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-20 flex gap-3">
+        {slides.map((_, index) => (
+          <button
+            key={index}
+            onClick={() => goToSlide(index)}
+            className={`w-3 h-3 rounded-full transition-all duration-300 ${
+              index === currentSlide
+                ? 'bg-primary w-8'
+                : 'bg-white/50 hover:bg-white/80'
+            }`}
+            aria-label={`Go to slide ${index + 1}`}
+          />
+        ))}
+      </div>
 
       {/* Content - Center aligned */}
       <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -29,7 +85,7 @@ export default function Hero() {
             <span className="text-primary">Join THE DJEMBE CIRCLE</span>
           </h1>
 
-          <p className="mt-6 text-xl md:text-2xl text-gray-300 leading-relaxed max-w-3xl mx-auto">
+          <p className="mt-6 text-xl md:text-2xl text-gray-200 leading-relaxed max-w-3xl mx-auto drop-shadow-lg">
             Experience the power of rhythm and connection through drumming. Book your spot now and let the music move you.
           </p>
 
