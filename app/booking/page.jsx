@@ -17,6 +17,8 @@ import {
   FaSpinner,
   FaCheckCircle,
   FaUserCircle,
+  FaTag,
+  FaTimes,
 } from 'react-icons/fa';
 import { useAuth } from '@/lib/auth';
 import ApiService from '@/services/api';
@@ -38,7 +40,11 @@ export default function Booking() {
     mobile: '',
     email: '',
     tickets: 1,
+    couponCode: '',
   });
+  const [coupon, setCoupon] = useState(null);
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState('');
 
   // Redirect if not logged in
   useEffect(() => {
@@ -104,143 +110,223 @@ export default function Booking() {
       if (event && event.ticketClasses && event.ticketClasses.length > 0) {
         setSelectedTicketClass(event.ticketClasses[0]);
       }
+      // Reset coupon when event changes
+      setCoupon(null);
+      setCouponError('');
+      setForm(prev => ({ ...prev, couponCode: '' }));
     }
   }, [form.eventId, events]);
 
-  // Handle payment
- // Handle payment
-const handlePayment = async (e) => {
-  e.preventDefault();
-  
-  if (!selectedEvent) {
-    toast.error('Please select an event');
-    return;
-  }
-
-  if (!selectedTicketClass) {
-    toast.error('Please select a ticket class');
-    return;
-  }
-
-  if (!form.fullName || !form.mobile || !form.email) {
-    toast.error('Please fill in all required fields');
-    return;
-  }
-
-  setProcessingPayment(true);
-
-  try {
-    // 1. Create internal order
-    const orderPayload = {
-      eventId: selectedEvent.id,
-      items: [
-        {
-          ticketClassId: selectedTicketClass.id,
-          quantity: form.tickets,
-        },
-      ],
-      customerDetails: {
-        fullName: form.fullName,
-        mobile: form.mobile,
-        email: form.email,
-      },
-    };
-
-    const orderResponse = await ApiService.createOrder(orderPayload);
-
-    if (!orderResponse.success) {
-      throw new Error(orderResponse.message || 'Order creation failed');
-    }
-
-    const orderData = orderResponse.data;
-
-    // 2. Create Razorpay order
-    const razorpayPayload = { orderId: orderData.id };
-    const razorpayResponse = await ApiService.createRazorpayOrder(razorpayPayload);
-
-    if (!razorpayResponse.success) {
-      throw new Error(razorpayResponse.message || 'Razorpay order creation failed');
-    }
-
-    const { razorpayOrderId, amount, key } = razorpayResponse.data;
-
-    // 3. Open Razorpay checkout
-    const options = {
-      key: key || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-      amount: amount * 100, // in paise
-      currency: 'INR',
-      name: 'THE DJEMBE CIRCLE',
-      description: `Booking: ${selectedEvent.title}`,
-      order_id: razorpayOrderId,
-      handler: async function (response) {
-        // 4. Verify payment
-        try {
-          const verifyPayload = {
-            razorpay_order_id: response.razorpay_order_id,
-            razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_signature: response.razorpay_signature,
-          };
-          const verifyResponse = await ApiService.verifyPayment(verifyPayload);
-
-          if (verifyResponse.success) {
-            toast.success('Payment successful! 🎉');
-            // Redirect to success page with the actual payment ID
-            const params = new URLSearchParams({
-              orderId: orderData.id,
-              eventId: selectedEvent.id,
-              tickets: form.tickets,
-              payment_id: response.razorpay_payment_id, // FIXED: Use actual payment ID
-              payment_status: 'success',
-            });
-            router.push(`/success?${params.toString()}`);
-          } else {
-            throw new Error(verifyResponse.message || 'Payment verification failed');
-          }
-        } catch (error) {
-          console.error('Verification error:', error);
-          toast.error(error.message || 'Payment verification failed');
-          router.push(`/payment-failed?orderId=${orderData.id}`);
-        }
-        setProcessingPayment(false);
-      },
-      modal: {
-        ondismiss: function () {
-          toast.error('Payment cancelled');
-          setProcessingPayment(false);
-        },
-      },
-      prefill: {
-        name: form.fullName,
-        email: form.email,
-        contact: form.mobile,
-      },
-      theme: {
-        color: '#FF6B35', // primary color
-      },
-    };
-
-    const loaded = await loadRazorpay();
-
-    if (!loaded) {
-      toast.error("Failed to load payment gateway");
-      setProcessingPayment(false);
+  // Apply coupon
+  const applyCoupon = async () => {
+    const code = form.couponCode.trim().toUpperCase();
+    if (!code) {
+      setCouponError('Please enter a coupon code');
       return;
     }
 
-    const razorpay = new window.Razorpay(options);
-    razorpay.open();
+    if (!selectedEvent) {
+      setCouponError('Please select an event');
+      return;
+    }
 
-  } catch (error) {
-    console.error('Payment flow error:', error);
-    toast.error(error.message || 'Failed to initiate payment');
-    setProcessingPayment(false);
-  }
-};
+    setCouponLoading(true);
+    setCouponError('');
+
+    try {
+      const response = await ApiService.validateCoupon({
+        code: code,
+        eventId: selectedEvent.id,
+      });
+
+      if (response.success && response.data) {
+        setCoupon(response.data);
+        toast.success('Coupon applied successfully!');
+        setCouponError('');
+      } else {
+        setCouponError(response.message || 'Invalid coupon code');
+        setCoupon(null);
+      }
+    } catch (err) {
+      console.error('Coupon validation error:', err);
+      setCouponError(err.response?.data?.message || 'Failed to apply coupon');
+      setCoupon(null);
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  // Remove coupon
+  const removeCoupon = () => {
+    setCoupon(null);
+    setCouponError('');
+    setForm(prev => ({ ...prev, couponCode: '' }));
+    toast.success('Coupon removed');
+  };
+
+  // Calculate total with coupon discount
+  const calculateTotal = () => {
+    const baseTotal = getBasePrice() * form.tickets;
+    if (coupon) {
+      const discount = (baseTotal * coupon.discountPercentage) / 100;
+      return baseTotal - discount;
+    }
+    return baseTotal;
+  };
+
+  const calculateDiscount = () => {
+    const baseTotal = getBasePrice() * form.tickets;
+    if (coupon) {
+      return (baseTotal * coupon.discountPercentage) / 100;
+    }
+    return 0;
+  };
+
+  // Handle payment
+  const handlePayment = async (e) => {
+    e.preventDefault();
+    
+    if (!selectedEvent) {
+      toast.error('Please select an event');
+      return;
+    }
+
+    if (!selectedTicketClass) {
+      toast.error('Please select a ticket class');
+      return;
+    }
+
+    if (!form.fullName || !form.mobile || !form.email) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    setProcessingPayment(true);
+
+    try {
+      // 1. Create internal order
+      const orderPayload = {
+        eventId: selectedEvent.id,
+        items: [
+          {
+            ticketClassId: selectedTicketClass.id,
+            quantity: form.tickets,
+          },
+        ],
+        customerDetails: {
+          fullName: form.fullName,
+          mobile: form.mobile,
+          email: form.email,
+        },
+        couponCode: coupon ? coupon.code : null, // Add coupon code to order
+      };
+
+      const orderResponse = await ApiService.createOrder(orderPayload);
+
+      if (!orderResponse.success) {
+        throw new Error(orderResponse.message || 'Order creation failed');
+      }
+
+      const orderData = orderResponse.data;
+
+      // 2. Create Razorpay order
+      const razorpayPayload = { 
+        orderId: orderData.id,
+        couponCode: coupon ? coupon.code : null,
+      };
+      const razorpayResponse = await ApiService.createRazorpayOrder(razorpayPayload);
+
+      if (!razorpayResponse.success) {
+        throw new Error(razorpayResponse.message || 'Razorpay order creation failed');
+      }
+
+      const { razorpayOrderId, amount, key } = razorpayResponse.data;
+
+      // 3. Open Razorpay checkout
+      const options = {
+        key: key || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        amount: amount * 100, // in paise
+        currency: 'INR',
+        name: 'THE DJEMBE CIRCLE',
+        description: `Booking: ${selectedEvent.title}${coupon ? ` (Coupon: ${coupon.code})` : ''}`,
+        order_id: razorpayOrderId,
+        handler: async function (response) {
+          // 4. Verify payment
+          try {
+            const verifyPayload = {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            };
+            const verifyResponse = await ApiService.verifyPayment(verifyPayload);
+
+            if (verifyResponse.success) {
+              toast.success('Payment successful! 🎉');
+              // Redirect to success page with the actual payment ID
+              const params = new URLSearchParams({
+                orderId: orderData.id,
+                eventId: selectedEvent.id,
+                tickets: form.tickets,
+                payment_id: response.razorpay_payment_id,
+                payment_status: 'success',
+                couponCode: coupon ? coupon.code : '',
+                discountAmount: calculateDiscount().toString(),
+              });
+              router.push(`/success?${params.toString()}`);
+            } else {
+              throw new Error(verifyResponse.message || 'Payment verification failed');
+            }
+          } catch (error) {
+            console.error('Verification error:', error);
+            toast.error(error.message || 'Payment verification failed');
+            router.push(`/payment-failed?orderId=${orderData.id}`);
+          }
+          setProcessingPayment(false);
+        },
+        modal: {
+          ondismiss: function () {
+            toast.error('Payment cancelled');
+            setProcessingPayment(false);
+          },
+        },
+        prefill: {
+          name: form.fullName,
+          email: form.email,
+          contact: form.mobile,
+        },
+        theme: {
+          color: '#FF6B35',
+        },
+      };
+
+      const loaded = await loadRazorpay();
+
+      if (!loaded) {
+        toast.error("Failed to load payment gateway");
+        setProcessingPayment(false);
+        return;
+      }
+
+      const razorpay = new window.Razorpay(options);
+      razorpay.open();
+
+    } catch (error) {
+      console.error('Payment flow error:', error);
+      toast.error(error.message || 'Failed to initiate payment');
+      setProcessingPayment(false);
+    }
+  };
 
   const updateTickets = (change) => {
     const newValue = form.tickets + change;
     if (newValue >= 1 && newValue <= 10) {
       setForm({ ...form, tickets: newValue });
+      // Reset coupon when tickets change (optional)
+      // if (coupon) {
+      //   setCoupon(null);
+      //   setCouponError('');
+      //   setForm(prev => ({ ...prev, couponCode: '' }));
+      // }
     }
   };
 
@@ -448,6 +534,74 @@ const handlePayment = async (e) => {
                 </div>
               </div>
 
+              {/* Coupon Section */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Coupon Code
+                </label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">
+                      <FaTag />
+                    </div>
+                    <input
+                      type="text"
+                      value={form.couponCode}
+                      onChange={(e) => {
+                        setForm({ ...form, couponCode: e.target.value.toUpperCase() });
+                        if (coupon) {
+                          setCoupon(null);
+                          setCouponError('');
+                        }
+                      }}
+                      className="w-full bg-black/50 border border-white/10 pl-12 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary/50 transition-colors duration-300 uppercase"
+                      placeholder="Enter coupon code"
+                      disabled={!!coupon}
+                    />
+                  </div>
+                  {!coupon ? (
+                    <button
+                      type="button"
+                      onClick={applyCoupon}
+                      disabled={couponLoading || !form.couponCode}
+                      className="px-6 py-3 bg-primary/20 hover:bg-primary/30 text-primary font-semibold border border-primary/30 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {couponLoading ? (
+                        <FaSpinner className="animate-spin" />
+                      ) : (
+                        'Apply'
+                      )}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={removeCoupon}
+                      className="px-6 py-3 bg-red-500/20 hover:bg-red-500/30 text-red-400 font-semibold border border-red-500/30 transition-all duration-300"
+                    >
+                      <FaTimes />
+                    </button>
+                  )}
+                </div>
+                {couponError && (
+                  <p className="text-red-400 text-sm mt-2">{couponError}</p>
+                )}
+                {coupon && (
+                  <div className="mt-2 bg-green-500/10 border border-green-500/30 p-3 rounded">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="text-green-400 font-semibold">{coupon.code}</p>
+                        <p className="text-xs text-gray-400">{coupon.discountPercentage}% discount applied</p>
+                      </div>
+                      {coupon.expiresAt && (
+                        <p className="text-xs text-gray-500">
+                          Valid until: {new Date(coupon.expiresAt).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Number of Tickets
@@ -583,6 +737,17 @@ const handlePayment = async (e) => {
                           <p className="text-white text-sm font-medium">{form.email || 'Not provided'}</p>
                         </div>
                       </div>
+
+                      {/* Coupon in summary */}
+                      {coupon && (
+                        <div className="flex items-center gap-3 text-gray-300 pt-2 border-t border-white/5">
+                          <FaTag className="text-green-400 text-sm" />
+                          <div>
+                            <p className="text-xs text-gray-500">Coupon Applied</p>
+                            <p className="text-green-400 text-sm font-medium">{coupon.code} ({coupon.discountPercentage}% off)</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -606,12 +771,35 @@ const handlePayment = async (e) => {
                       <span className="text-gray-400">Tickets</span>
                       <span className="text-white font-semibold">× {form.tickets}</span>
                     </div>
-                    <div className="flex justify-between text-lg font-bold mt-3 pt-3 border-t border-white/10">
-                      <span className="text-gray-400">Total Amount</span>
-                      <span className="text-primary">
+                    
+                    {/* Show subtotal */}
+                    <div className="flex justify-between text-sm mt-2 pt-2 border-t border-white/5">
+                      <span className="text-gray-400">Subtotal</span>
+                      <span className="text-white font-semibold">
                         ₹{getBasePrice() * form.tickets}
                       </span>
                     </div>
+
+                    {/* Show discount if coupon applied */}
+                    {coupon && (
+                      <div className="flex justify-between text-sm mt-2 text-green-400">
+                        <span>Discount ({coupon.discountPercentage}%)</span>
+                        <span>- ₹{calculateDiscount().toFixed(2)}</span>
+                      </div>
+                    )}
+
+                    <div className="flex justify-between text-lg font-bold mt-3 pt-3 border-t border-white/10">
+                      <span className="text-gray-400">Total Amount</span>
+                      <span className="text-primary">
+                        ₹{calculateTotal().toFixed(2)}
+                      </span>
+                    </div>
+
+                    {coupon && (
+                      <p className="text-xs text-green-400 mt-2">
+                        You saved ₹{calculateDiscount().toFixed(2)} with coupon!
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-2 text-xs text-gray-500 mt-4 pt-3 border-t border-white/10">

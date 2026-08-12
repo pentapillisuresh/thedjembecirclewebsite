@@ -144,8 +144,8 @@ export default function About() {
             {/* Stats below image */}
             <div className="grid grid-cols-4 gap-3 mt-6">
               {[
-                { label: 'Events Hosted', value: '50+' },
-                { label: 'Happy Members', value: '5K+' },
+                { label: 'Events Hosted', value: '375+' },
+                { label: 'Happy Members', value: '15K+' },
                 { label: 'Countries', value: '15+' },
                 { label: 'Satisfaction', value: '98%' }
               ].map((stat, index) => (

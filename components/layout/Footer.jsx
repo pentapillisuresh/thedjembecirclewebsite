@@ -120,10 +120,10 @@ export default function Footer() {
           <div>
             <h4 className="font-semibold text-white mb-4 border-l-4 border-primary pl-3">Contact</h4>
             <ul className="space-y-3 text-sm text-gray-400">
-              <li className="flex items-start space-x-3">
+              {/* <li className="flex items-start space-x-3">
                 <FaMapMarkerAlt className="text-primary mt-1 flex-shrink-0" />
                 <span>Flat No 401, 16-10-30/1,<br />Ajay Vihar, Old Malakpet,<br />Hyderabad, Telangana 500036</span>
-              </li>
+              </li> */}
               <li className="flex items-center space-x-3">
                 <FaEnvelope className="text-primary flex-shrink-0" />
                 <div className="flex flex-col">
