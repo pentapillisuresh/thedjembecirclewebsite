@@ -199,6 +199,32 @@ class ApiService {
     return this.request(endpoint);
   }
 
+
+    // ========== COUPONS ==========
+  
+  /**
+   * Validate a coupon code (Public - requires authentication)
+   * Checks: active status, expiry, max uses, eligibility, user usage
+   * Body: { code }
+   */
+  validateCoupon(data) {
+    return this.request(API_ENDPOINTS.COUPONS.VALIDATE, {
+      method: 'POST',
+      body: data,
+    });
+  }
+
+  /**
+   * Apply a coupon to an order (Public - requires authentication)
+   * Body: { code, orderId }
+   */
+  applyCoupon(data) {
+    return this.request(API_ENDPOINTS.COUPONS.APPLY, {
+      method: 'POST',
+      body: data,
+    });
+  }
+
   // ========== GALLERY ==========
   getGallery(filters = {}) {
     return this.request(API_ENDPOINTS.GALLERY.GET_ALL, {
@@ -252,5 +278,8 @@ requestRefund(orderId) {
   return this.request(endpoint, {method: 'POST'});
 }
 }
+
+
+
 
 export default new ApiService();

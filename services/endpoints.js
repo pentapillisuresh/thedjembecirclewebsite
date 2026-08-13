@@ -1,70 +1,87 @@
+// src/services/endpoints.js
+
 export const API_ENDPOINTS = {
   // Auth
   AUTH: {
-    REGISTER: '/auth/signup',      // POST /api/auth/signup
-    LOGIN: '/auth/login',          // POST /api/auth/login
-    LOGOUT: '/auth/logout',        // POST /api/auth/logout (optional)
-    ADMIN_LOGIN: '/auth/admin/login', // POST /api/auth/admin/login
+    REGISTER: '/auth/signup',
+    LOGIN: '/auth/login',
+    LOGOUT: '/auth/logout',
+    ADMIN_LOGIN: '/auth/admin/login',
   },
 
   // User
   USER: {
-    PROFILE: '/users/profile',     // GET /api/users/profile
-    UPDATE: '/users/profile',      // PUT /api/users/profile
-    CHANGE_PIN: '/users/change-pin', // PUT /api/users/change-pin
-    ORDERS: '/users/orders',       // GET /api/users/orders
-    ORDER_DETAILS: '/users/orders/:orderId', // GET /api/users/orders/:orderId
-    COUNTS: '/users/userCounts', // GET /api/users/orders/:orderId
+    PROFILE: '/users/profile',
+    UPDATE: '/users/profile',
+    CHANGE_PIN: '/users/change-pin',
+    ORDERS: '/users/orders',
+    ORDER_DETAILS: '/users/orders/:orderId',
+    COUNTS: '/users/userCounts',
   },
 
   // Events
   EVENTS: {
-    GET_ALL: '/events',            // GET /api/events?status=&limit=&offset=
-    GET_UPCOMING: '/events/upcoming', // GET /api/events/upcoming
-    GET_BY_ID: '/events/:id',      // GET /api/events/:id
+    GET_ALL: '/events',
+    GET_UPCOMING: '/events/upcoming',
+    GET_BY_ID: '/events/:id',
   },
 
   // Orders (booking)
   ORDERS: {
-    CREATE: '/orders/create',      // POST /api/orders/create
-    GET_BY_ID: '/orders/:orderId', // GET /api/orders/:orderId
-    CANCEL: '/orders/:orderId/cancel', // PUT /api/orders/:orderId/cancel
+    CREATE: '/orders/create',
+    GET_BY_ID: '/orders/:orderId',
+    CANCEL: '/orders/:orderId/cancel',
     REFUND: '/orders/:orderId/refund',
   },
 
   // Payment
   PAYMENT: {
-    CREATE_ORDER: '/payment/create-order', // POST /api/payment/create-order
-    VERIFY: '/payment/verify',     // POST /api/payment/verify
-    STATUS: '/payment/status/:orderId', // GET /api/payment/status/:orderId
-    // Refund is admin-only, not included here
+    CREATE_ORDER: '/payment/create-order',
+    VERIFY: '/payment/verify',
+    STATUS: '/payment/status/:orderId',
   },
 
   // Gallery
   GALLERY: {
-    GET_ALL: '/gallery',           // GET /api/gallery
+    GET_ALL: '/gallery',
   },
 
-  // Contact (if you have a contact endpoint)
+  // Contact
   CONTACT: {
-    SEND: '/contact',              // POST /api/contact (if defined)
+    SEND: '/contact',
   },
 
   // Blog
-BLOG: {
-  GET_ALL: '/blog',
-  GET_BY_SLUG: '/blog/:slug',
-  CREATE: '/admin/blog',
-  UPDATE: '/admin/blog/:id',
-  DELETE: '/admin/blog/:id',
-  GET_ALL_ADMIN: '/admin/blog',
-},
+  BLOG: {
+    GET_ALL: '/blog',
+    GET_BY_SLUG: '/blog/:slug',
+    CREATE: '/admin/blog',
+    UPDATE: '/admin/blog/:id',
+    DELETE: '/admin/blog/:id',
+    GET_ALL_ADMIN: '/admin/blog',
+  },
 
-// Leads (public)
-LEADS: {
-  SUBMIT: '/leads',
-  // admin endpoints omitted – usually only used in admin panel
-}
+  // Leads
+  LEADS: {
+    SUBMIT: '/leads',
+  },
+
+  // ========== COUPONS ==========
+  COUPONS: {
+    // Public endpoints (require authentication)
+    VALIDATE: '/coupons/validate',
+    APPLY: '/coupons/apply',
+    
+    // Admin endpoints
+    ADMIN: {
+      GET_ALL: '/admin/coupons',
+      GET_BY_ID: '/admin/coupons/:id',
+      CREATE: '/admin/coupons',
+      UPDATE: '/admin/coupons/:id',
+      DELETE: '/admin/coupons/:id',
+      TOGGLE: '/admin/coupons/:id/toggle',
+    },
+  },
 };
 
 export default API_ENDPOINTS;

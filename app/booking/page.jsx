@@ -16,9 +16,9 @@ import {
   FaMinus,
   FaSpinner,
   FaCheckCircle,
-  FaUserCircle,
   FaTag,
   FaTimes,
+  FaExclamationCircle,
 } from 'react-icons/fa';
 import { useAuth } from '@/lib/auth';
 import ApiService from '@/services/api';
@@ -45,6 +45,7 @@ export default function Booking() {
   const [coupon, setCoupon] = useState(null);
   const [couponLoading, setCouponLoading] = useState(false);
   const [couponError, setCouponError] = useState('');
+  const [couponValidationDetails, setCouponValidationDetails] = useState(null);
 
   // Redirect if not logged in
   useEffect(() => {
@@ -62,10 +63,8 @@ export default function Booking() {
         const data = await ApiService.getUpcomingEvents();
         if (data.success && data.data && data.data.length > 0) {
           setEvents(data.data);
-          // Auto-select the first event
           const firstEvent = data.data[0];
           setSelectedEvent(firstEvent);
-          // Auto-select first ticket class
           if (firstEvent.ticketClasses && firstEvent.ticketClasses.length > 0) {
             setSelectedTicketClass(firstEvent.ticketClasses[0]);
           }
@@ -91,7 +90,6 @@ export default function Booking() {
   // Populate user info when available
   useEffect(() => {
     if (user) {
-      console.log('User data:', user);
       setForm((prev) => ({
         ...prev,
         fullName: user.fullName || user.name || user.username || '',
@@ -106,18 +104,27 @@ export default function Booking() {
     if (form.eventId && events.length > 0) {
       const event = events.find((e) => e.id === form.eventId);
       setSelectedEvent(event || null);
-      // Update ticket class when event changes
       if (event && event.ticketClasses && event.ticketClasses.length > 0) {
         setSelectedTicketClass(event.ticketClasses[0]);
       }
       // Reset coupon when event changes
       setCoupon(null);
       setCouponError('');
+      setCouponValidationDetails(null);
       setForm(prev => ({ ...prev, couponCode: '' }));
     }
   }, [form.eventId, events]);
 
-  // Apply coupon
+  /**
+   * Apply coupon - Validates against backend
+   * The backend checks:
+   * 1. Coupon exists
+   * 2. isActive is true
+   * 3. Not expired (expiresAt > now)
+   * 4. maxUses not reached (usedCount < maxUses)
+   * 5. User is eligible (eligibleUsers includes 'All' OR includes userId)
+   * 6. User hasn't already used this coupon
+   */
   const applyCoupon = async () => {
     const code = form.couponCode.trim().toUpperCase();
     if (!code) {
@@ -132,25 +139,44 @@ export default function Booking() {
 
     setCouponLoading(true);
     setCouponError('');
+    setCouponValidationDetails(null);
 
     try {
+      // Backend expects { code } - it uses authenticated user from token
       const response = await ApiService.validateCoupon({
         code: code,
-        eventId: selectedEvent.id,
       });
 
       if (response.success && response.data) {
+        // Coupon is valid - store it
         setCoupon(response.data);
+        setCouponValidationDetails({
+          valid: true,
+          message: response.message || 'Coupon applied successfully!',
+        });
         toast.success('Coupon applied successfully!');
         setCouponError('');
       } else {
-        setCouponError(response.message || 'Invalid coupon code');
+        // Coupon is invalid
+        const errorMsg = response.message || 'Invalid coupon code';
+        setCouponError(errorMsg);
         setCoupon(null);
+        setCouponValidationDetails({
+          valid: false,
+          message: errorMsg,
+        });
+        toast.error(errorMsg);
       }
     } catch (err) {
       console.error('Coupon validation error:', err);
-      setCouponError(err.response?.data?.message || 'Failed to apply coupon');
+      const errorMsg = err.message || 'Failed to apply coupon';
+      setCouponError(errorMsg);
       setCoupon(null);
+      setCouponValidationDetails({
+        valid: false,
+        message: errorMsg,
+      });
+      toast.error(errorMsg);
     } finally {
       setCouponLoading(false);
     }
@@ -160,6 +186,7 @@ export default function Booking() {
   const removeCoupon = () => {
     setCoupon(null);
     setCouponError('');
+    setCouponValidationDetails(null);
     setForm(prev => ({ ...prev, couponCode: '' }));
     toast.success('Coupon removed');
   };
@@ -204,7 +231,7 @@ export default function Booking() {
     setProcessingPayment(true);
 
     try {
-      // 1. Create internal order
+      // 1. Create internal order with coupon code if applied
       const orderPayload = {
         eventId: selectedEvent.id,
         items: [
@@ -218,7 +245,7 @@ export default function Booking() {
           mobile: form.mobile,
           email: form.email,
         },
-        couponCode: coupon ? coupon.code : null, // Add coupon code to order
+        couponCode: coupon ? coupon.code : null,
       };
 
       const orderResponse = await ApiService.createOrder(orderPayload);
@@ -245,13 +272,12 @@ export default function Booking() {
       // 3. Open Razorpay checkout
       const options = {
         key: key || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-        amount: amount * 100, // in paise
+        amount: amount * 100,
         currency: 'INR',
         name: 'THE DJEMBE CIRCLE',
         description: `Booking: ${selectedEvent.title}${coupon ? ` (Coupon: ${coupon.code})` : ''}`,
         order_id: razorpayOrderId,
         handler: async function (response) {
-          // 4. Verify payment
           try {
             const verifyPayload = {
               razorpay_order_id: response.razorpay_order_id,
@@ -262,7 +288,6 @@ export default function Booking() {
 
             if (verifyResponse.success) {
               toast.success('Payment successful! 🎉');
-              // Redirect to success page with the actual payment ID
               const params = new URLSearchParams({
                 orderId: orderData.id,
                 eventId: selectedEvent.id,
@@ -321,16 +346,9 @@ export default function Booking() {
     const newValue = form.tickets + change;
     if (newValue >= 1 && newValue <= 10) {
       setForm({ ...form, tickets: newValue });
-      // Reset coupon when tickets change (optional)
-      // if (coupon) {
-      //   setCoupon(null);
-      //   setCouponError('');
-      //   setForm(prev => ({ ...prev, couponCode: '' }));
-      // }
     }
   };
 
-  // Format date and time
   const formatDate = (dateString) => {
     if (!dateString) return 'TBD';
     const date = new Date(dateString);
@@ -350,7 +368,6 @@ export default function Booking() {
     });
   };
 
-  // Get ticket price range or single price
   const getTicketPrice = (event) => {
     if (!event || !event.ticketClasses || event.ticketClasses.length === 0) {
       return 'TBD';
@@ -362,7 +379,6 @@ export default function Booking() {
     return `₹${min} - ₹${max}`;
   };
 
-  // Get the first ticket class price (for total calculation)
   const getBasePrice = () => {
     return selectedTicketClass?.price || 0;
   };
@@ -404,7 +420,6 @@ export default function Booking() {
       <div className="absolute bottom-0 left-0 w-72 h-72 bg-purple-500/5 blur-3xl"></div>
 
       <div className="max-w-6xl mx-auto relative z-10">
-        {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -425,7 +440,6 @@ export default function Booking() {
         </motion.div>
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-          {/* Form - Takes 3 columns */}
           <motion.div
             initial={{ opacity: 0, x: -30 }}
             animate={{ opacity: 1, x: 0 }}
@@ -534,7 +548,7 @@ export default function Booking() {
                 </div>
               </div>
 
-              {/* Coupon Section */}
+              {/* Coupon Section - Updated with better validation feedback */}
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Coupon Code
@@ -552,9 +566,14 @@ export default function Booking() {
                         if (coupon) {
                           setCoupon(null);
                           setCouponError('');
+                          setCouponValidationDetails(null);
                         }
                       }}
-                      className="w-full bg-black/50 border border-white/10 pl-12 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary/50 transition-colors duration-300 uppercase"
+                      className={`w-full bg-black/50 border ${
+                        couponError ? 'border-red-500/50' : 
+                        coupon ? 'border-green-500/50' : 
+                        'border-white/10'
+                      } pl-12 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary/50 transition-colors duration-300 uppercase`}
                       placeholder="Enter coupon code"
                       disabled={!!coupon}
                     />
@@ -582,9 +601,21 @@ export default function Booking() {
                     </button>
                   )}
                 </div>
+                
+                {/* Coupon Error Message */}
                 {couponError && (
-                  <p className="text-red-400 text-sm mt-2">{couponError}</p>
+                  <div className="mt-2 bg-red-500/10 border border-red-500/30 p-3 rounded flex items-start gap-2">
+                    <FaExclamationCircle className="text-red-400 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-red-400 text-sm">{couponError}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Coupon must be active, not expired, with remaining uses, and eligible for you
+                      </p>
+                    </div>
+                  </div>
                 )}
+                
+                {/* Coupon Success Message */}
                 {coupon && (
                   <div className="mt-2 bg-green-500/10 border border-green-500/30 p-3 rounded">
                     <div className="flex justify-between items-center">
@@ -676,7 +707,6 @@ export default function Booking() {
             </form>
           </motion.div>
 
-          {/* Event Preview - Takes 2 columns */}
           <motion.div
             initial={{ opacity: 0, x: 30 }}
             animate={{ opacity: 1, x: 0 }}
@@ -688,7 +718,6 @@ export default function Booking() {
 
               {selectedEvent ? (
                 <div className="space-y-4">
-                  {/* Event Details */}
                   <div className="border-b border-white/10 pb-4">
                     <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Event Details</p>
                     <p className="text-white font-semibold">{selectedEvent.title}</p>
@@ -709,7 +738,6 @@ export default function Booking() {
                     <span className="text-sm">{selectedEvent.venue || 'TBD'}</span>
                   </div>
 
-                  {/* User Details */}
                   <div className="border-t border-white/10 pt-4 mt-4">
                     <p className="text-xs text-gray-500 uppercase tracking-wider mb-3">Customer Details</p>
                     
@@ -738,7 +766,6 @@ export default function Booking() {
                         </div>
                       </div>
 
-                      {/* Coupon in summary */}
                       {coupon && (
                         <div className="flex items-center gap-3 text-gray-300 pt-2 border-t border-white/5">
                           <FaTag className="text-green-400 text-sm" />
@@ -751,7 +778,6 @@ export default function Booking() {
                     </div>
                   </div>
 
-                  {/* Ticket Summary */}
                   <div className="border-t border-white/10 pt-4 mt-4">
                     <p className="text-xs text-gray-500 uppercase tracking-wider mb-3">Ticket Summary</p>
                     
@@ -772,15 +798,13 @@ export default function Booking() {
                       <span className="text-white font-semibold">× {form.tickets}</span>
                     </div>
                     
-                    {/* Show subtotal */}
                     <div className="flex justify-between text-sm mt-2 pt-2 border-t border-white/5">
                       <span className="text-gray-400">Subtotal</span>
                       <span className="text-white font-semibold">
-                        ₹{getBasePrice() * form.tickets}
+                        ₹{(getBasePrice() * form.tickets).toFixed(2)}
                       </span>
                     </div>
 
-                    {/* Show discount if coupon applied */}
                     {coupon && (
                       <div className="flex justify-between text-sm mt-2 text-green-400">
                         <span>Discount ({coupon.discountPercentage}%)</span>
