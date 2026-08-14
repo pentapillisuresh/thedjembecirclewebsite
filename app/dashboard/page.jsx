@@ -3,15 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import {
-  FaUser,
-  FaTicketAlt,
-  FaCalendar,
-  FaHeart,
-  FaClock,
-  FaShieldAlt,
-  FaArrowRight,
-  FaSpinner,
+import {FaUser,FaTicketAlt,FaCalendar,FaHeart,FaClock,FaShieldAlt,FaArrowRight,FaSpinner,
 } from 'react-icons/fa';
 import { useAuth } from '@/lib/auth';
 import ApiService from '@/services/api';

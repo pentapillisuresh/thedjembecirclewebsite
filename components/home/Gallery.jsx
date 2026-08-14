@@ -278,138 +278,64 @@ export default function Gallery() {
         )}
 
         {/* Gallery Grid */}
-        {galleryItems.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-12">
-            {galleryItems.map((item, index) => (
-              <motion.div
-                key={item.id || index}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: index * 0.08 }}
-                viewport={{ once: true }}
-                onMouseEnter={() => setHoveredIndex(index)}
-                onMouseLeave={() => {
-                  setHoveredIndex(null);
-                }}
-                className="group relative overflow-hidden border border-white/10 hover:border-primary/40 transition-all duration-500 bg-white/5 rounded-lg cursor-pointer"
-              >
-                <div 
-                  className="relative aspect-square overflow-hidden bg-black"
-                  onClick={() => item.type === 'video' && handleVideoClick(index)}
-                >
-                  {item.type === 'video' ? (
-                    <>
-                      <video
-                        ref={(el) => {
-                          if (el) videoRefs.current[index] = el;
-                        }}
-                        src={item.image}
-                        className="w-full h-full object-cover"
-                        loop={false}
-                        playsInline
-                        muted={isMuted}
-                        preload="metadata"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleVideoClick(index);
-                        }}
-                      />
-                      {/* Show thumbnail/poster when video is not playing */}
-                      {playingVideo !== index && (
-                        <>
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-black/20"></div>
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="w-20 h-20 bg-primary/90 rounded-full flex items-center justify-center shadow-lg shadow-primary/50 hover:scale-110 transition-transform duration-300">
-                              <FaPlay className="text-white text-2xl ml-1" />
-                            </div>
-                          </div>
-                          {/* Video icon badge */}
-                          <div className="absolute top-4 right-4 bg-black/80 backdrop-blur-sm px-3 py-1 border-l-4 border-primary rounded-full">
-                            <span className="text-xs text-white font-medium flex items-center gap-1">
-                              <FaVideo className="text-primary" />
-                              VIDEO
-                            </span>
-                          </div>
-                        </>
-                      )}
-                      {playingVideo === index && (
-                        <>
-                          <div className="absolute top-4 right-4 bg-black/80 backdrop-blur-sm px-3 py-1 border-l-4 border-primary rounded-full">
-                            <span className="text-xs text-white font-medium flex items-center gap-1">
-                              <FaVideo className="text-primary" />
-                              PLAYING
-                            </span>
-                          </div>
-                          <div className="absolute bottom-4 right-4 z-10">
-                            <button
-                              onClick={(e) => toggleMute(index, e)}
-                              className="w-10 h-10 bg-black/80 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/20 hover:border-primary/40 transition-all duration-300"
-                            >
-                              {videoRefs.current[index]?.muted ? (
-                                <FaVolumeMute className="text-white text-sm" />
-                              ) : (
-                                <FaVolumeUp className="text-white text-sm" />
-                              )}
-                            </button>
-                          </div>
-                          {/* Pause overlay on hover */}
-                          <div className={`absolute inset-0 bg-black/30 flex items-center justify-center transition-opacity duration-300 ${
-                            hoveredIndex === index ? 'opacity-100' : 'opacity-0'
-                          }`}>
-                            <div className="w-16 h-16 bg-primary/80 rounded-full flex items-center justify-center shadow-lg shadow-primary/50 hover:scale-110 transition-transform duration-300">
-                              <FaPause className="text-white text-xl" />
-                            </div>
-                          </div>
-                        </>
-                      )}
-                    </>
-                  ) : (
-                    <Image
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-12">
+          {items.map((item, index) => (
+            <motion.div
+              key={item.id || index}
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: index * 0.08 }}
+              viewport={{ once: true }}
+              onMouseEnter={() => setHoveredIndex(index)}
+              onMouseLeave={() => setHoveredIndex(null)}
+              className="group relative overflow-hidden border border-white/10 hover:border-primary/40 transition-all duration-500 bg-white/5 cursor-pointer"
+            >
+              <div className="relative aspect-square overflow-hidden">
+                {item.type === 'video' ? (
+                  <>
+                    <video
+                      ref={(el) => (videoRefs.current[index] = el)}
                       src={item.image}
-                      alt={item.title}
-                      fill
-                      className={`object-cover transition-transform duration-700 ${
-                        hoveredIndex === index ? 'scale-110' : 'scale-100'
-                      }`}
-                      onError={(e) => {
-                        console.error(`Failed to load image: ${item.image}`);
-                        const parent = e.currentTarget.parentElement;
-                        if (parent) {
-                          const fallback = document.createElement('div');
-                          fallback.className = 'w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-purple-500/10';
-                          fallback.innerHTML = '<span class="text-6xl">🖼️</span>';
-                          parent.appendChild(fallback);
-                          e.currentTarget.style.display = 'none';
-                        }
-                      }}
-                      unoptimized={true}
+                      className="w-full h-full object-cover"
+                      loop
+                      playsInline
                     />
-                  )}
-                  
-                  {/* Overlay for both image and video */}
-                  <div className={`absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent transition-opacity duration-500 ${
-                    hoveredIndex === index ? 'opacity-100' : 'opacity-0'
-                  }`}>
-                    <div className="absolute bottom-0 left-0 right-0 p-6 transform translate-y-full group-hover:translate-y-0 transition-transform duration-500">
-                      <h3 className="text-white font-bold text-lg mb-1 line-clamp-2">{item.title}</h3>
-                      <p className="text-gray-300 text-sm flex items-center">
-                        {item.type === 'video' ? (
-                          <>
-                            <FaVideo className="text-primary mr-2" />
-                            Video
-                          </>
-                        ) : (
-                          <>
-                            <FaImage className="text-primary mr-2" />
-                            Photo
-                          </>
-                        )}
-                        {item.event && (
-                          <span className="ml-2 text-xs text-gray-400">• {item.event.title}</span>
-                        )}
-                      </p>
-                    </div>
+                    {playingVideo !== index && (
+                      <div className="absolute inset-0 bg-black/30"></div>
+                    )}
+                  </>
+                ) : (
+                  <Image
+                    src={item.image}
+                    alt={item.title}
+                    fill
+                    className={`object-cover transition-transform duration-700 ${
+                      hoveredIndex === index ? 'scale-110' : 'scale-100'
+                    }`}
+                  />
+                )}
+                
+                {/* Overlay */}
+                <div className={`absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent transition-opacity duration-500 ${
+                  hoveredIndex === index || playingVideo === index ? 'opacity-100' : 'opacity-0'
+                }`}>
+                  <div className="absolute bottom-0 left-0 right-0 p-6 transform translate-y-full group-hover:translate-y-0 transition-transform duration-500">
+                    <h3 className="text-white font-bold text-lg mb-1">{item.title}</h3>
+                    <p className="text-gray-300 text-sm flex items-center">
+                      {item.type === 'video' ? (
+                        <>
+                          <FaPlay className="text-primary mr-2" />
+                          Video
+                        </>
+                      ) : (
+                        <>
+                          <FaImage className="text-primary mr-2" />
+                          Photo
+                        </>
+                      )}
+                    </p>
                   </div>
+                </div>
 
                   {/* Event Badge */}
                   {item.event && item.type !== 'video' && (

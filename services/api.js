@@ -278,13 +278,10 @@ class ApiService {
   }
 
   // Request refund (user)
-requestRefund(orderId) {
-  const endpoint = API_ENDPOINTS.ORDERS.REFUND.replace(':orderId',orderId);
-  return this.request(endpoint, {method: 'POST'});
+  requestRefund(orderId) {
+    const endpoint = API_ENDPOINTS.ORDERS.REFUND.replace(':orderId', orderId);
+    return this.request(endpoint, { method: 'POST' });
+  }
 }
-}
-
-
-
 
 export default new ApiService();

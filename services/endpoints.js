@@ -62,27 +62,16 @@ export const API_ENDPOINTS = {
     GET_ALL_ADMIN: '/admin/blog',
   },
 
-  // Leads
-  LEADS: {
-    SUBMIT: '/leads',
-  },
+// Leads (public)
+LEADS: {
+  SUBMIT: '/leads',
+  // admin endpoints omitted – usually only used in admin panel
+},
 
-  // ========== COUPONS ==========
-  COUPONS: {
-    // Public endpoints (require authentication)
-    VALIDATE: '/coupons/validate',
-    APPLY: '/coupons/apply',
-    
-    // Admin endpoints
-    ADMIN: {
-      GET_ALL: '/admin/coupons',
-      GET_BY_ID: '/admin/coupons/:id',
-      CREATE: '/admin/coupons',
-      UPDATE: '/admin/coupons/:id',
-      DELETE: '/admin/coupons/:id',
-      TOGGLE: '/admin/coupons/:id/toggle',
-    },
-  },
+COUPONS: {
+  VALIDATE: '/coupons/validate',
+  APPLY: '/coupons/apply',
+},
 };
 
 export default API_ENDPOINTS;
