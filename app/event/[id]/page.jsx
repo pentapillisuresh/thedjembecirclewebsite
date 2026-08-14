@@ -8,6 +8,47 @@ import {FaCalendar,FaClock,FaMapMarkerAlt,FaTicketAlt,FaArrowLeft,FaArrowRight,F
 import ApiService from '@/services/api';
 import toast from 'react-hot-toast';
 
+// Helper function to get full media URL
+const getMediaUrl = (path) => {
+  if (!path) return null;
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path;
+  }
+  if (path.startsWith('/uploads/')) {
+    const baseUrl = process.env.NEXT_PUBLIC_MEDIA_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const cleanBaseUrl = baseUrl.replace('/api', '');
+    return `${cleanBaseUrl}${path}`;
+  }
+  // If path doesn't start with /uploads/ but is a relative path
+  if (path.startsWith('/')) {
+    const baseUrl = process.env.NEXT_PUBLIC_MEDIA_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const cleanBaseUrl = baseUrl.replace('/api', '');
+    return `${cleanBaseUrl}${path}`;
+  }
+  return path;
+};
+
+// Helper to format date
+const formatDate = (dateString) => {
+  if (!dateString) return 'TBD';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+};
+
+// Helper to format time
+const formatTime = (dateString) => {
+  if (!dateString) return 'TBD';
+  const date = new Date(dateString);
+  return date.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
 export default function EventDetail() {
   const { id } = useParams();
   const router = useRouter();
@@ -22,8 +63,25 @@ export default function EventDetail() {
       try {
         setLoading(true);
         const data = await ApiService.getEventById(id);
+        console.log('Event data:', data);
+        
         if (data.success && data.data) {
-          setEvent(data.data);
+          // Process event data with full image URL
+          const eventData = data.data;
+          console.log('Raw bannerImage:', eventData.bannerImage);
+          
+          // Fix the image URL - remove any extra slashes or quotes
+          let imageUrl = eventData.bannerImage;
+          if (imageUrl) {
+            // Remove quotes if present
+            imageUrl = imageUrl.replace(/^["']|["']$/g, '');
+            // Remove extra slashes
+            imageUrl = imageUrl.replace(/^\/\//, '/');
+            eventData.bannerImage = getMediaUrl(imageUrl);
+          }
+          
+          console.log('Processed bannerImage:', eventData.bannerImage);
+          setEvent(eventData);
         } else {
           setError(data.message || 'Event not found');
         }
@@ -38,26 +96,6 @@ export default function EventDetail() {
     fetchEvent();
   }, [id]);
 
-  // Format date and time
-  const formatDate = (dateString) => {
-    if (!dateString) return 'TBD';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  };
-
-  const formatTime = (dateString) => {
-    if (!dateString) return 'TBD';
-    const date = new Date(dateString);
-    return date.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
   // Get price range from ticket classes
   const getPriceRange = (ticketClasses) => {
     if (!ticketClasses || ticketClasses.length === 0) return 'TBD';
@@ -66,13 +104,6 @@ export default function EventDetail() {
     const max = Math.max(...prices);
     if (min === max) return `₹${min}`;
     return `₹${min} - ₹${max}`;
-  };
-
-  // Get lowest price (for quick display)
-  const getLowestPrice = (ticketClasses) => {
-    if (!ticketClasses || ticketClasses.length === 0) return 0;
-    const prices = ticketClasses.map((cls) => cls.price);
-    return Math.min(...prices);
   };
 
   // Get total available tickets
@@ -122,6 +153,9 @@ export default function EventDetail() {
     );
   }
 
+  // Get the processed image URL
+  const imageUrl = event.bannerImage || null;
+
   return (
     <section className="min-h-screen bg-black py-8 px-4">
       <div className="max-w-5xl mx-auto">
@@ -144,23 +178,29 @@ export default function EventDetail() {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="border border-white/10 bg-white/5 backdrop-blur-sm overflow-hidden"
+          className="border border-white/10 bg-white/5 backdrop-blur-sm overflow-hidden rounded-2xl"
         >
           {/* Event Image */}
           <div className="relative w-full h-[300px] md:h-[400px] bg-black overflow-hidden">
-            {event.bannerImage ? (
-              <Image
-                src={event.bannerImage}
-                alt={event.title}
-                fill
-                className="object-cover"
-                priority
+            {imageUrl ? (
+              <img
+                src={imageUrl}
+                alt={event.title || 'Event'}
+                className="w-full h-full object-cover"
                 onError={(e) => {
+                  console.error('Failed to load image:', imageUrl);
                   e.target.style.display = 'none';
+                  const parent = e.target.parentElement;
+                  if (parent) {
+                    const fallback = document.createElement('div');
+                    fallback.className = 'w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-purple-500/20';
+                    fallback.innerHTML = '<span className="text-8xl md:text-9xl">🥁</span>';
+                    parent.appendChild(fallback);
+                  }
                 }}
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-purple-500/10">
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-purple-500/20">
                 <span className="text-8xl md:text-9xl">🥁</span>
               </div>
             )}
@@ -214,7 +254,7 @@ export default function EventDetail() {
                 <p className="text-gray-400 mt-2">{event.description}</p>
               </div>
               <div className="flex-shrink-0">
-                <div className="px-6 py-3 bg-primary/10 border-l-4 border-primary text-center">
+                <div className="px-6 py-3 bg-primary/10 border-l-4 border-primary text-center rounded-full">
                   <p className="text-xs text-gray-400 uppercase tracking-wider">Price</p>
                   <p className="text-3xl font-bold text-primary">
                     {getPriceRange(event.ticketClasses)}
@@ -265,7 +305,7 @@ export default function EventDetail() {
             </div>
 
             {/* Additional Info with Ticket Classes */}
-            <div className="mt-8 p-6 bg-white/5 border border-white/10">
+            <div className="mt-8 p-6 bg-white/5 border border-white/10 rounded-2xl">
               <h3 className="text-white font-semibold text-lg mb-3 flex items-center gap-2">
                 <FaMusic className="text-primary" />
                 About This Event
@@ -282,7 +322,7 @@ export default function EventDetail() {
                     {event.ticketClasses.map((cls) => (
                       <div
                         key={cls.id}
-                        className="bg-white/5 border border-white/10 p-3 hover:border-primary/40 transition-all duration-300"
+                        className="bg-white/5 border border-white/10 p-3 hover:border-primary/40 transition-all duration-300 rounded-lg"
                       >
                         <p className="text-white font-semibold">{cls.name}</p>
                         <p className="text-primary font-bold">₹{cls.price}</p>

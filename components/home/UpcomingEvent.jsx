@@ -4,7 +4,21 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import { FaCalendar, FaClock, FaMapMarkerAlt, FaArrowRight } from 'react-icons/fa';
-import ApiService from "../../services/api"
+import ApiService from "../../services/api";
+
+// Helper function to get full media URL
+const getMediaUrl = (path) => {
+  if (!path) return '/images/event.jpg';
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path;
+  }
+  if (path.startsWith('/uploads/')) {
+    const baseUrl = process.env.NEXT_PUBLIC_MEDIA_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const cleanBaseUrl = baseUrl.replace('/api', '');
+    return `${cleanBaseUrl}${path}`;
+  }
+  return path;
+};
 
 export default function UpcomingEvent() {
   const [event, setEvent] = useState(null);
@@ -17,7 +31,12 @@ export default function UpcomingEvent() {
         const data = await ApiService.getUpcomingEvents();
         // ApiService returns { success: true, data: [...] }
         if (data.success && data.data && data.data.length > 0) {
-          setEvent(data.data[0]);
+          // Process the event data to add full image URL
+          const eventData = data.data[0];
+          if (eventData.bannerImage) {
+            eventData.bannerImage = getMediaUrl(eventData.bannerImage);
+          }
+          setEvent(eventData);
         } else {
           setError('No upcoming events at the moment');
         }
@@ -125,14 +144,33 @@ export default function UpcomingEvent() {
           className="grid grid-cols-1 lg:grid-cols-2 gap-0 border border-white/10 bg-white/5 backdrop-blur-sm overflow-hidden hover:border-primary/30 transition-all duration-500"
         >
           {/* Left side - Image */}
-          <div className="relative h-[350px] lg:h-auto min-h-[350px] overflow-hidden">
-            <Image
-              src={event.bannerImage || '/images/event.jpg'}
-              alt={event.title || 'Upcoming Event'}
-              fill
-              className="object-cover"
-              priority
-            />
+          <div className="relative h-[350px] lg:h-auto min-h-[350px] overflow-hidden bg-gray-800">
+            {event.bannerImage ? (
+              <Image
+                src={event.bannerImage}
+                alt={event.title || 'Upcoming Event'}
+                fill
+                className="object-cover"
+                priority
+                onError={(e) => {
+                  console.error('Failed to load image:', event.bannerImage);
+                  e.currentTarget.style.display = 'none';
+                  // Show fallback
+                  const parent = e.currentTarget.parentElement;
+                  if (parent) {
+                    const fallback = document.createElement('div');
+                    fallback.className = 'w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-purple-500/20';
+                    fallback.innerHTML = '<span className="text-6xl">🥁</span>';
+                    parent.appendChild(fallback);
+                  }
+                }}
+                unoptimized={true}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-purple-500/20">
+                <span className="text-6xl">🥁</span>
+              </div>
+            )}
             <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-transparent lg:bg-gradient-to-r"></div>
             
             <div className="absolute bottom-6 left-6 right-6 lg:hidden">
@@ -144,8 +182,6 @@ export default function UpcomingEvent() {
 
           {/* Right side - Content */}
           <div className="p-6 md:p-10 flex flex-col justify-center">
-            {/* <div className="w-16 h-1 bg-primary mb-4"></div> */}
-            
             <h3 className="text-2xl md:text-3xl font-bold text-primary mb-4">
               {event.title}
             </h3>
