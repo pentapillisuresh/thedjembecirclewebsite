@@ -226,11 +226,16 @@ class ApiService {
   }
 
   // ========== GALLERY ==========
-  getGallery(filters = {}) {
+ getGallery(filters = {}) {
     return this.request(API_ENDPOINTS.GALLERY.GET_ALL, {
       params: filters,
       includeAuth: false,
     });
+  }
+
+  getEventGallery(eventId) {
+    const endpoint = API_ENDPOINTS.GALLERY.GET_BY_EVENT.replace(':eventId', eventId);
+    return this.request(endpoint, { includeAuth: false });
   }
 
   // ========== CONTACT ==========

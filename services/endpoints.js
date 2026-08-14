@@ -44,6 +44,7 @@ export const API_ENDPOINTS = {
   // Gallery
   GALLERY: {
     GET_ALL: '/gallery',
+    GET_BY_EVENT: '/gallery/event/:eventId',
   },
 
   // Contact
