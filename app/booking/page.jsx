@@ -2,23 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import {
-  FaTicketAlt,
-  FaUser,
-  FaPhone,
-  FaEnvelope,
-  FaCalendar,
-  FaClock,
-  FaMapMarkerAlt,
-  FaArrowRight,
-  FaWallet,
-  FaPlus,
-  FaMinus,
-  FaSpinner,
-  FaCheckCircle,
-  FaTag,
-  FaTimes,
-  FaExclamationCircle,
+import { FaTicketAlt, FaUser, FaPhone, FaEnvelope, FaCalendar, FaClock, FaMapMarkerAlt, FaArrowRight, FaWallet, FaPlus, FaMinus, FaSpinner, FaCheckCircle, FaTag, FaTimes, FaExclamationCircle,
 } from 'react-icons/fa';
 import { useAuth } from '@/lib/auth';
 import ApiService from '@/services/api';
