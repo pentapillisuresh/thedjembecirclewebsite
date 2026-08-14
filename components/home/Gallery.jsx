@@ -152,7 +152,7 @@ export default function Gallery() {
                   <>
                     <video
                       ref={(el) => (videoRefs.current[index] = el)}
-                      src={item.image}
+                      src={`http://localhost:3001/${item.mediaUrl}`}
                       className="w-full h-full object-cover"
                       loop
                       playsInline
@@ -163,7 +163,7 @@ export default function Gallery() {
                   </>
                 ) : (
                   <Image
-                    src={item.image}
+                    src={`http://localhost:3001/${item.mediaUrl}`}
                     alt={item.title}
                     fill
                     className={`object-cover transition-transform duration-700 ${
