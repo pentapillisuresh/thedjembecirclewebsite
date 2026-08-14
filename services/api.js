@@ -239,13 +239,15 @@ class ApiService {
   }
 
   // ========== CONTACT ==========
-  sendContactMessage(data) {
-    return this.request(API_ENDPOINTS.CONTACT.SEND, {
-      method: 'POST',
-      body: data,
-      includeAuth: false,
-    });
-  }
+ // ========== LEAD ==========
+submitLead(data) {
+  // Using /api/lead (without 's') - this matches your working backend endpoint
+  return this.request('/lead', { 
+    method: 'POST', 
+    body: data, 
+    includeAuth: false 
+  });
+}
 
   // ========== BLOG ==========
   getBlogs(filters = {}) {
@@ -274,7 +276,7 @@ class ApiService {
 
   // ========== LEAD ==========
   submitLead(data) {
-    return this.request(API_ENDPOINTS.LEADS.SUBMIT, { method: 'POST', body: data, includeAuth: false });
+    return this.request(API_ENDPOINTS.LEAD.SUBMIT, { method: 'POST', body: data, includeAuth: false });
   }
 
   // Request refund (user)

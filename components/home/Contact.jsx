@@ -62,15 +62,8 @@ export default function Contact() {
 
               <div className="space-y-6">
                 <div className="flex items-center space-x-4 group">
-                  <div className="p-3 bg-primary/10 border-l-4 border-primary group-hover:border-primary/60 transition-all duration-300">
-                    <FaMapMarker className="text-primary text-lg" />
-                  </div>
-                  <div>
-                    <p className="text-gray-400 text-sm">Address</p>
-                    <p className="text-white font-medium">Flat No 401, 16-10-30/1,</p>
-                    <p className="text-white font-medium">Ajay Vihar, Old Malakpet,</p>
-                    <p className="text-white font-medium">Hyderabad, Telangana 500036</p>
-                  </div>
+                
+                 
                 </div>
 
                 <div className="flex items-center space-x-4 group">

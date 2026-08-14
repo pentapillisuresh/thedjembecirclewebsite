@@ -3,20 +3,119 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
-import { FaEnvelope, FaPhone, FaMapMarkerAlt, FaClock, FaPaperPlane, FaInstagram, FaYoutube, FaFacebook, FaTwitter } from 'react-icons/fa';
+import { 
+  FaEnvelope, 
+  FaPhone, 
+  FaMapMarkerAlt, 
+  FaClock, 
+  FaPaperPlane, 
+  FaInstagram, 
+  FaYoutube, 
+  FaFacebook, 
+  FaTwitter, 
+  FaSpinner, 
+  FaChevronDown,
+  FaBuilding,
+  FaUsers,
+  FaRing,
+  FaMusic,
+  FaBook,
+  FaHandshake,
+  FaSchool,
+  FaGlobe,
+  FaSpa,
+  FaBirthdayCake,
+  FaCalendarCheck
+} from 'react-icons/fa';
 import toast from 'react-hot-toast';
+import ApiService from '@/services/api';
 
 export default function Contact() {
-  const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' });
+  const [form, setForm] = useState({ 
+    name: '', 
+    email: '', 
+    phone: '',
+    subject: '', 
+    message: '',
+    eventInterested: '',
+  });
   const [loading, setLoading] = useState(false);
+
+  // Static event options with React Icons
+  const staticEventOptions = [
+    { id: 'corporate', title: 'Corporate Events', icon: <FaBuilding className="text-primary" /> },
+    { id: 'private', title: 'Private Parties', icon: <FaUsers className="text-primary" /> },
+    { id: 'wedding', title: 'Wedding Celebrations', icon: <FaRing className="text-primary" /> },
+    { id: 'festival', title: 'Festivals & Fairs', icon: <FaMusic className="text-primary" /> },
+    { id: 'workshop', title: 'Educational Workshops', icon: <FaBook className="text-primary" /> },
+    { id: 'team-building', title: 'Team Building Activities', icon: <FaHandshake className="text-primary" /> },
+    { id: 'school', title: 'School Programs', icon: <FaSchool className="text-primary" /> },
+    { id: 'community', title: 'Community Gatherings', icon: <FaGlobe className="text-primary" /> },
+    { id: 'wellness', title: 'Wellness & Retreats', icon: <FaSpa className="text-primary" /> },
+    { id: 'birthday', title: 'Birthday Celebrations', icon: <FaBirthdayCake className="text-primary" /> },
+  ];
+
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validation
+    if (!form.name || !form.email || !form.phone || !form.message) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    if (!form.email.includes('@') || !form.email.includes('.')) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+
+    if (form.phone.length < 10) {
+      toast.error('Please enter a valid phone number');
+      return;
+    }
+
     setLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    toast.success('Message sent successfully!');
-    setForm({ name: '', email: '', subject: '', message: '' });
-    setLoading(false);
+
+    try {
+      // Find the selected event option
+      const selectedEvent = staticEventOptions.find(opt => opt.id === form.eventInterested);
+      const eventName = selectedEvent ? selectedEvent.title : form.eventInterested;
+
+      const response = await ApiService.submitLead({
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
+        message: form.message,
+        subject: form.subject || null,
+        eventInterested: eventName || null,
+        source: 'website'
+      });
+
+      console.log('Lead response:', response);
+
+      if (response.success) {
+        toast.success(response.message || 'Message sent successfully!');
+        setForm({ 
+          name: '', 
+          email: '', 
+          phone: '',
+          subject: '', 
+          message: '',
+          eventInterested: '',
+        });
+      } else {
+        throw new Error(response.message || 'Failed to send message');
+      }
+    } catch (error) {
+      console.error('Contact form error:', error);
+      toast.error(error.message || 'Failed to send message. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -46,15 +145,15 @@ export default function Contact() {
               transition={{ duration: 0.8 }}
             >
               <div className="inline-flex items-center bg-white/10 backdrop-blur-md px-6 py-2 mb-6 border-l-4 border-primary">
-                <FaEnvelope className="text-primary mr-2" />
-                <span className="text-primary text-sm font-semibold tracking-wider">CONTACT US</span>
+                <FaCalendarCheck className="text-primary mr-2" />
+                <span className="text-primary text-sm font-semibold tracking-wider">SCHEDULE AN EVENT</span>
               </div>
               <h1 className="text-4xl md:text-5xl font-extrabold text-white">
-                Get In <span className="text-primary">Touch</span>
+                Book Your <span className="text-primary">Drum Circle</span>
               </h1>
               <div className="w-24 h-1 bg-primary mx-auto mt-4"></div>
               <p className="mt-4 text-lg text-gray-300 max-w-2xl mx-auto">
-                We'd love to hear from you. Reach out to us for any questions or inquiries.
+                Plan your next event with us. Whether it's a corporate gathering, private party, or community celebration, we'll bring the rhythm to you.
               </p>
             </motion.div>
           </div>
@@ -71,13 +170,7 @@ export default function Contact() {
           viewport={{ once: true }}
           className="grid grid-cols-1 md:grid-cols-3 gap-6 -mt-12 relative z-10"
         >
-          <div className="border border-white/10 bg-white/5 backdrop-blur-sm p-6 text-center hover:border-primary/40 transition-all duration-300 hover:-translate-y-2">
-            <div className="w-16 h-16 bg-primary/10 flex items-center justify-center mx-auto mb-3 border-l-4 border-primary">
-              <FaMapMarkerAlt className="text-primary text-2xl" />
-            </div>
-            <h3 className="text-white font-semibold">Address</h3>
-            <p className="text-gray-400 text-sm mt-1">Flat No 401, 16-10-30/1,<br />Ajay Vihar, Old Malakpet,<br />Hyderabad, Telangana 500036</p>
-          </div>
+        
           <div className="border border-white/10 bg-white/5 backdrop-blur-sm p-6 text-center hover:border-primary/40 transition-all duration-300 hover:-translate-y-2">
             <div className="w-16 h-16 bg-primary/10 flex items-center justify-center mx-auto mb-3 border-l-4 border-primary">
               <FaEnvelope className="text-primary text-2xl" />
@@ -85,6 +178,7 @@ export default function Contact() {
             <h3 className="text-white font-semibold">Email</h3>
             <a href="mailto:thedjembecircle2018@gmail.com" className="text-gray-400 text-sm mt-1 hover:text-primary transition-colors duration-300">
               thedjembecircle2018@gmail.com
+               info@thedjembecircle.com
             </a>
           </div>
           <div className="border border-white/10 bg-white/5 backdrop-blur-sm p-6 text-center hover:border-primary/40 transition-all duration-300 hover:-translate-y-2">
@@ -98,7 +192,7 @@ export default function Contact() {
           </div>
         </motion.div>
 
-        {/* Contact Form & Info */}
+        {/* Booking Form & Info */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mt-12">
           {/* Form */}
           <motion.div
@@ -108,29 +202,50 @@ export default function Contact() {
             viewport={{ once: true }}
             className="border border-white/10 bg-white/5 backdrop-blur-sm p-8"
           >
-            <h2 className="text-2xl font-bold text-white mb-6">Send Us a Message</h2>
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-white">Schedule Your Event</h2>
+              <p className="text-gray-400 text-sm mt-1">Fill in the details and we'll get back to you within 24 hours</p>
+            </div>
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Your Name</label>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Your Name <span className="text-primary">*</span>
+                </label>
                 <input
                   type="text"
                   name="name"
                   value={form.name}
-                  onChange={(e) => setForm({...form, name: e.target.value})}
+                  onChange={handleChange}
                   className="w-full bg-black/50 border border-white/10 px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary/50 transition-colors duration-300"
                   placeholder="John Doe"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Email</label>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Email Address <span className="text-primary">*</span>
+                </label>
                 <input
                   type="email"
                   name="email"
                   value={form.email}
-                  onChange={(e) => setForm({...form, email: e.target.value})}
+                  onChange={handleChange}
                   className="w-full bg-black/50 border border-white/10 px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary/50 transition-colors duration-300"
                   placeholder="john@example.com"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Phone Number <span className="text-primary">*</span>
+                </label>
+                <input
+                  type="tel"
+                  name="phone"
+                  value={form.phone}
+                  onChange={handleChange}
+                  className="w-full bg-black/50 border border-white/10 px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary/50 transition-colors duration-300"
+                  placeholder="+91 9876543210"
                   required
                 />
               </div>
@@ -140,21 +255,52 @@ export default function Contact() {
                   type="text"
                   name="subject"
                   value={form.subject}
-                  onChange={(e) => setForm({...form, subject: e.target.value})}
+                  onChange={handleChange}
                   className="w-full bg-black/50 border border-white/10 px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary/50 transition-colors duration-300"
-                  placeholder="How can we help?"
-                  required
+                  placeholder="e.g., Corporate Event Inquiry"
                 />
               </div>
+
+              {/* Event Interested Dropdown with Icons */}
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Message</label>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Event Type <span className="text-primary">*</span>
+                </label>
+                <div className="relative">
+                  <select
+                    name="eventInterested"
+                    value={form.eventInterested}
+                    onChange={handleChange}
+                    className="w-full bg-black/50 border border-white/10 px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary/50 transition-colors duration-300 appearance-none pr-10"
+                    required
+                  >
+                    <option value="">Select your event type</option>
+                    {staticEventOptions.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.title}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                    <FaChevronDown className="text-gray-400" />
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Choose the type of event you'd like to book
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Your Message <span className="text-primary">*</span>
+                </label>
                 <textarea
                   name="message"
                   value={form.message}
-                  onChange={(e) => setForm({...form, message: e.target.value})}
+                  onChange={handleChange}
                   rows="5"
                   className="w-full bg-black/50 border border-white/10 px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary/50 transition-colors duration-300 resize-none"
-                  placeholder="Your message here..."
+                  placeholder="Tell us about your event, expected number of participants, preferred date, and any special requirements..."
                   required
                 />
               </div>
@@ -164,10 +310,13 @@ export default function Contact() {
                 disabled={loading}
               >
                 {loading ? (
-                  'Sending...'
+                  <>
+                    <FaSpinner className="animate-spin mr-2" />
+                    Sending...
+                  </>
                 ) : (
                   <>
-                    Send Message
+                    Book Your Event
                     <FaPaperPlane className="ml-2 group-hover:translate-x-1 transition-transform duration-300" />
                   </>
                 )}
@@ -211,13 +360,24 @@ export default function Contact() {
             </div>
 
             <div className="border border-white/10 bg-white/5 p-8">
-              <h3 className="text-2xl font-bold text-white mb-4">Quick Response</h3>
-              <p className="text-gray-400 leading-relaxed">
-                We typically respond within 24 hours. For urgent inquiries, please call us directly.
-              </p>
-              <div className="mt-4 flex items-center gap-3 text-sm text-gray-400">
-                <div className="w-2 h-2 bg-green-500 animate-pulse"></div>
-                <span>Usually responds in 2-3 hours</span>
+              <h3 className="text-2xl font-bold text-white mb-4">Why Book With Us?</h3>
+              <div className="space-y-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-2 h-2 bg-primary rounded-full mt-2"></div>
+                  <p className="text-gray-400 text-sm">Professional drum circle facilitators</p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-2 h-2 bg-primary rounded-full mt-2"></div>
+                  <p className="text-gray-400 text-sm">High-quality instruments provided</p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-2 h-2 bg-primary rounded-full mt-2"></div>
+                  <p className="text-gray-400 text-sm">Customized experiences for all group sizes</p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-2 h-2 bg-primary rounded-full mt-2"></div>
+                  <p className="text-gray-400 text-sm">Flexible scheduling to fit your needs</p>
+                </div>
               </div>
             </div>
 

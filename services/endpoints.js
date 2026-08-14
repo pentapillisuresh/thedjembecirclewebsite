@@ -48,8 +48,8 @@ export const API_ENDPOINTS = {
   },
 
   // Contact
-  CONTACT: {
-    SEND: '/contact',
+   LEADS: {
+    SUBMIT: '/lead',
   },
 
   // Blog
@@ -63,8 +63,8 @@ export const API_ENDPOINTS = {
   },
 
 // Leads (public)
-LEADS: {
-  SUBMIT: '/leads',
+LEAD: {
+  SUBMIT: '/lead',
   // admin endpoints omitted – usually only used in admin panel
 },
 

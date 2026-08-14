@@ -7,9 +7,9 @@ import { FaUsers, FaCalendar, FaStar, FaArrowRight, FaDrum, FaMusic, FaHeart } f
 
 export default function About() {
   const stats = [
-    { icon: FaCalendar, value: '50+', label: 'Events Hosted' },
-    { icon: FaUsers, value: '5,000+', label: 'Happy Participants' },
-    { icon: FaStar, value: '10+', label: 'Master Drummers' },
+    { icon: FaCalendar, value: '376+', label: 'Events Hosted' },
+    { icon: FaUsers, value: '15,000+', label: 'Happy Participants' },
+    // { icon: FaStar, value: '10+', label: '' },
     { icon: FaHeart, value: '98%', label: 'Satisfaction Rate' },
   ];
 
@@ -163,7 +163,7 @@ export default function About() {
               Every session is a journey of discovery and connection."
             </p>
             <div className="mt-4">
-              <p className="text-white font-semibold">— Sarah Johnson</p>
+              <p className="text-white font-semibold">— Pavan kumar</p>
               <p className="text-gray-400 text-sm">Regular Participant</p>
             </div>
           </div>
