@@ -277,15 +277,6 @@ class ApiService {
     const endpoint = API_ENDPOINTS.ORDERS.REFUND.replace(':orderId', orderId);
     return this.request(endpoint, { method: 'POST' });
   }
-  // ========== COUPON ==========
-  // Public
-  validateCoupon(code) {
-    return this.request(API_ENDPOINTS.COUPONS.VALIDATE, { method: 'POST', body: { code } });
-  }
-  applyCoupon(code, orderId) {
-    return this.request(API_ENDPOINTS.COUPONS.APPLY, { method: 'POST', body: { code, orderId } });
-  }
-
 }
 
 export default new ApiService();
