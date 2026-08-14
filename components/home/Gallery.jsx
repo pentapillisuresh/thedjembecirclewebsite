@@ -20,13 +20,6 @@ const getMediaUrl = (path) => {
   return path;
 };
 
-// Helper to get thumbnail from video URL
-const getVideoThumbnail = (videoUrl) => {
-  // If video URL is available, we can use it as poster
-  // Or we can generate a thumbnail using a service
-  return videoUrl;
-};
-
 export default function Gallery() {
   const [galleryItems, setGalleryItems] = useState([]);
   const [events, setEvents] = useState([]);
@@ -35,7 +28,7 @@ export default function Gallery() {
   const [error, setError] = useState(null);
   const [hoveredIndex, setHoveredIndex] = useState(null);
   const [playingVideo, setPlayingVideo] = useState(null);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
   const videoRefs = useRef({});
   const [stats, setStats] = useState({ total: 0, images: 0, videos: 0 });
 
@@ -44,13 +37,15 @@ export default function Gallery() {
       try {
         setLoading(true);
         
+        // Fetch events first
         const eventsData = await ApiService.getEvents({ limit: 100 });
-        if (eventsData.success) {
-          const eventList = eventsData.data?.events || eventsData.data || [];
+        if (eventsData.success && eventsData.data) {
+          const eventList = eventsData.data.events || eventsData.data || [];
           setEvents(eventList);
         }
 
-        await fetchGalleryItems(null);
+        // Fetch gallery items based on selection
+        await fetchGalleryItems(selectedEventId);
       } catch (err) {
         console.error('Fetch error:', err);
         setError('Failed to load data');
@@ -112,24 +107,24 @@ export default function Gallery() {
     fetchGalleryItems(eventId);
   };
 
-  const handleVideoClick = (index) => {
-    const video = videoRefs.current[index];
-    if (!video) return;
-
+  const toggleVideo = (index) => {
     if (playingVideo === index) {
-      video.pause();
+      if (videoRefs.current[index]) {
+        videoRefs.current[index].pause();
+      }
       setPlayingVideo(null);
     } else {
       Object.keys(videoRefs.current).forEach((key) => {
-        if (videoRefs.current[key] && key !== index) {
+        if (videoRefs.current[key]) {
           videoRefs.current[key].pause();
         }
       });
-      
-      video.play().catch(err => {
-        console.error('Video play error:', err);
-      });
-      video.muted = isMuted;
+      if (videoRefs.current[index]) {
+        videoRefs.current[index].play().catch(err => {
+          console.error('Video play error:', err);
+        });
+        videoRefs.current[index].muted = isMuted;
+      }
       setPlayingVideo(index);
     }
   };
@@ -278,64 +273,156 @@ export default function Gallery() {
         )}
 
         {/* Gallery Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-12">
-          {items.map((item, index) => (
-            <motion.div
-              key={item.id || index}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: index * 0.08 }}
-              viewport={{ once: true }}
-              onMouseEnter={() => setHoveredIndex(index)}
-              onMouseLeave={() => setHoveredIndex(null)}
-              className="group relative overflow-hidden border border-white/10 hover:border-primary/40 transition-all duration-500 bg-white/5 cursor-pointer"
-            >
-              <div className="relative aspect-square overflow-hidden">
-                {item.type === 'video' ? (
-                  <>
-                    <video
-                      ref={(el) => (videoRefs.current[index] = el)}
-                      src={item.image}
-                      className="w-full h-full object-cover"
-                      loop
-                      playsInline
-                    />
-                    {playingVideo !== index && (
-                      <div className="absolute inset-0 bg-black/30"></div>
-                    )}
-                  </>
-                ) : (
-                  <Image
-                    src={item.image}
-                    alt={item.title}
-                    fill
-                    className={`object-cover transition-transform duration-700 ${
-                      hoveredIndex === index ? 'scale-110' : 'scale-100'
-                    }`}
-                  />
-                )}
-                
-                {/* Overlay */}
-                <div className={`absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent transition-opacity duration-500 ${
-                  hoveredIndex === index || playingVideo === index ? 'opacity-100' : 'opacity-0'
-                }`}>
-                  <div className="absolute bottom-0 left-0 right-0 p-6 transform translate-y-full group-hover:translate-y-0 transition-transform duration-500">
-                    <h3 className="text-white font-bold text-lg mb-1">{item.title}</h3>
-                    <p className="text-gray-300 text-sm flex items-center">
-                      {item.type === 'video' ? (
-                        <>
-                          <FaPlay className="text-primary mr-2" />
-                          Video
-                        </>
-                      ) : (
-                        <>
-                          <FaImage className="text-primary mr-2" />
-                          Photo
-                        </>
+        {galleryItems.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-12">
+            {galleryItems.map((item, index) => (
+              <motion.div
+                key={item.id || index}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: index * 0.08 }}
+                viewport={{ once: true }}
+                onMouseEnter={() => setHoveredIndex(index)}
+                onMouseLeave={() => {
+                  setHoveredIndex(null);
+                }}
+                className="group relative overflow-hidden border border-white/10 hover:border-primary/40 transition-all duration-500 bg-white/5 rounded-lg cursor-pointer"
+              >
+                <div 
+                  className="relative aspect-square overflow-hidden bg-black"
+                  onClick={() => item.type === 'video' && toggleVideo(index)}
+                >
+                  {item.type === 'video' ? (
+                    <>
+                      <video
+                        ref={(el) => {
+                          if (el) videoRefs.current[index] = el;
+                        }}
+                        src={item.image}
+                        className="w-full h-full object-cover"
+                        loop={false}
+                        playsInline
+                        muted={isMuted}
+                        preload="auto"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleVideo(index);
+                        }}
+                      />
+                      {/* Always show overlay with play button when not playing */}
+                      {playingVideo !== index && (
+                        <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                          <motion.div
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            className="w-20 h-20 bg-primary/90 rounded-full flex items-center justify-center shadow-lg shadow-primary/50"
+                          >
+                            <FaPlay className="text-white text-2xl ml-1" />
+                          </motion.div>
+                        </div>
                       )}
-                    </p>
+                      {/* Show pause on hover when playing */}
+                      {playingVideo === index && (
+                        <div 
+                          className={`absolute inset-0 bg-black/20 flex items-center justify-center transition-opacity duration-300 ${
+                            hoveredIndex === index ? 'opacity-100' : 'opacity-0'
+                          }`}
+                          onClick={() => toggleVideo(index)}
+                        >
+                          <motion.div
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            className="w-16 h-16 bg-primary/80 rounded-full flex items-center justify-center shadow-lg shadow-primary/50"
+                          >
+                            <FaPause className="text-white text-xl" />
+                          </motion.div>
+                        </div>
+                      )}
+                      {/* Video playing indicator */}
+                      {playingVideo === index && (
+                        <div className="absolute top-4 right-4 bg-green-500/80 backdrop-blur-sm px-3 py-1 border-l-4 border-green-500 rounded-full">
+                          <span className="text-xs text-white font-medium flex items-center gap-1">
+                            <FaVideo className="text-white" />
+                            PLAYING
+                          </span>
+                        </div>
+                      )}
+                      {/* Video badge when not playing */}
+                      {playingVideo !== index && (
+                        <div className="absolute top-4 right-4 bg-black/80 backdrop-blur-sm px-3 py-1 border-l-4 border-primary rounded-full">
+                          <span className="text-xs text-white font-medium flex items-center gap-1">
+                            <FaVideo className="text-primary" />
+                            VIDEO
+                          </span>
+                        </div>
+                      )}
+                      {/* Mute/Unmute Button */}
+                      {playingVideo === index && (
+                        <div 
+                          className="absolute bottom-4 right-4 z-10"
+                          onClick={(e) => toggleMute(index, e)}
+                        >
+                          <motion.div
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            className="w-10 h-10 bg-black/80 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/20 hover:border-primary/40 transition-all duration-300"
+                          >
+                            {videoRefs.current[index]?.muted ? (
+                              <FaVolumeMute className="text-white text-sm" />
+                            ) : (
+                              <FaVolumeUp className="text-white text-sm" />
+                            )}
+                          </motion.div>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <Image
+                      src={item.image}
+                      alt={item.title}
+                      fill
+                      className={`object-cover transition-transform duration-700 ${
+                        hoveredIndex === index ? 'scale-110' : 'scale-100'
+                      }`}
+                      onError={(e) => {
+                        console.error(`Failed to load image: ${item.image}`);
+                        const parent = e.currentTarget.parentElement;
+                        if (parent) {
+                          const fallback = document.createElement('div');
+                          fallback.className = 'w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-purple-500/10';
+                          fallback.innerHTML = '<span class="text-6xl">🖼️</span>';
+                          parent.appendChild(fallback);
+                          e.currentTarget.style.display = 'none';
+                        }
+                      }}
+                      unoptimized={true}
+                    />
+                  )}
+                  
+                  {/* Overlay for title - visible on hover */}
+                  <div className={`absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent transition-opacity duration-500 ${
+                    hoveredIndex === index || playingVideo === index ? 'opacity-100' : 'opacity-0'
+                  }`}>
+                    <div className="absolute bottom-0 left-0 right-0 p-6 transform translate-y-full group-hover:translate-y-0 transition-transform duration-500">
+                      <h3 className="text-white font-bold text-lg mb-1 line-clamp-2">{item.title}</h3>
+                      <p className="text-gray-300 text-sm flex items-center">
+                        {item.type === 'video' ? (
+                          <>
+                            <FaVideo className="text-primary mr-2" />
+                            Video
+                          </>
+                        ) : (
+                          <>
+                            <FaImage className="text-primary mr-2" />
+                            Photo
+                          </>
+                        )}
+                        {item.event && (
+                          <span className="ml-2 text-xs text-gray-400">• {item.event.title}</span>
+                        )}
+                      </p>
+                    </div>
                   </div>
-                </div>
 
                   {/* Event Badge */}
                   {item.event && item.type !== 'video' && (
@@ -347,7 +434,7 @@ export default function Gallery() {
                     </div>
                   )}
 
-                  {/* Image Badge for photos */}
+                  {/* Image Badge */}
                   {item.type === 'image' && (
                     <div className="absolute top-4 right-4 bg-black/80 backdrop-blur-sm px-3 py-1 border-l-4 border-primary rounded-full">
                       <span className="text-xs text-white font-medium flex items-center gap-1">
