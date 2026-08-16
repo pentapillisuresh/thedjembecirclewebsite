@@ -27,6 +27,7 @@ export default function Header() {
     { name: 'About', href: '/about' },
     { name: 'Events', href: '/events' },
     { name: 'Gallery', href: '/gallery' },
+    { name: 'Blog', href: '/blog' },  // Added Blog
     { name: 'Contact', href: '/contact' },
   ];
 
@@ -70,7 +71,7 @@ export default function Header() {
             transition={{ duration: 0.5 }}
           >
             {/* Logo with Image */}
-            <Link href="/" className="flex items-center space-x-3 group">
+            <Link href="/" className="flex items-center space-x-3 group flex-shrink-0">
               <motion.div
                 whileHover={{ scale: 1.08, rotate: 5 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 15 }}

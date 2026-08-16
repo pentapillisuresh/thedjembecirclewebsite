@@ -56,10 +56,7 @@ export const API_ENDPOINTS = {
   BLOG: {
     GET_ALL: '/blog',
     GET_BY_SLUG: '/blog/:slug',
-    CREATE: '/admin/blog',
-    UPDATE: '/admin/blog/:id',
-    DELETE: '/admin/blog/:id',
-    GET_ALL_ADMIN: '/admin/blog',
+  
   },
 
 // Leads (public)

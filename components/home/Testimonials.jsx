@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaStar, FaQuoteLeft, FaChevronLeft, FaChevronRight, FaUser, FaPlay, FaPause, FaVolumeUp, FaVolumeMute } from 'react-icons/fa';
 
@@ -65,6 +65,9 @@ export default function Testimonials() {
   const [current, setCurrent] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+  const videoRef = useRef(null);
   const testimonials = testimonialsData;
 
   const next = () => setCurrent((prev) => (prev + 1) % testimonials.length);
@@ -81,12 +84,58 @@ export default function Testimonials() {
   };
 
   const togglePlay = () => {
-    setIsPlaying(!isPlaying);
+    if (videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.pause();
+      } else {
+        videoRef.current.play().catch(error => {
+          console.error('Video play error:', error);
+          setHasError(true);
+        });
+      }
+      setIsPlaying(!isPlaying);
+    }
   };
 
   const toggleMute = () => {
-    setIsMuted(!isMuted);
+    if (videoRef.current) {
+      videoRef.current.muted = !isMuted;
+      setIsMuted(!isMuted);
+    }
   };
+
+  const handleVideoLoaded = () => {
+    setIsLoading(false);
+    // If it was set to play, start playing
+    if (isPlaying && videoRef.current) {
+      videoRef.current.play().catch(console.error);
+    }
+  };
+
+  const handleVideoError = (e) => {
+    console.error('Video error:', e);
+    setHasError(true);
+    setIsLoading(false);
+  };
+
+  // Try to autoplay on mount
+  useEffect(() => {
+    // Attempt autoplay with muted
+    if (videoRef.current) {
+      videoRef.current.muted = true;
+      setIsMuted(true);
+      videoRef.current.play()
+        .then(() => {
+          setIsPlaying(true);
+          setIsLoading(false);
+        })
+        .catch(() => {
+          // Autoplay was blocked, user needs to click
+          setIsPlaying(false);
+          setIsLoading(false);
+        });
+    }
+  }, []);
 
   return (
     <section className="py-12 bg-black relative overflow-hidden">
@@ -213,48 +262,89 @@ export default function Testimonials() {
             </div>
           </div>
 
-          {/* Right Side - Video with reduced height */}
+          {/* Right Side - Video */}
           <div className="relative border border-white/10 bg-black overflow-hidden flex items-center justify-center" style={{ minHeight: '400px', maxHeight: '500px' }}>
+            {/* Loading State */}
+            {isLoading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-10">
+                <div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin"></div>
+              </div>
+            )}
+
+            {/* Error State */}
+            {hasError && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 z-10 p-4 text-center">
+                <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mb-4">
+                  <FaPlay className="text-red-400 text-2xl" />
+                </div>
+                <p className="text-gray-300 text-sm max-w-xs">
+                  Unable to load video. Please check your connection and try again.
+                </p>
+                <button 
+                  onClick={() => {
+                    setHasError(false);
+                    setIsLoading(true);
+                    if (videoRef.current) {
+                      videoRef.current.load();
+                      videoRef.current.play().catch(() => {
+                        setHasError(true);
+                        setIsLoading(false);
+                      });
+                    }
+                  }}
+                  className="mt-3 px-4 py-2 bg-primary text-white text-sm hover:bg-primary/80 transition-colors"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+
             <video
+              ref={videoRef}
               src="/images/testmonial.mp4"
               className="w-full h-full object-cover"
-              autoPlay={isPlaying}
               muted={isMuted}
               loop
               playsInline
               controls={false}
+              onLoadedData={handleVideoLoaded}
+              onError={handleVideoError}
             />
             
-            {/* Video Overlay Controls */}
-            <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-              <button
-                onClick={togglePlay}
-                className="w-14 h-14 bg-primary/90 flex items-center justify-center hover:bg-primary transition-all duration-300 shadow-lg shadow-primary/30"
-              >
-                {isPlaying ? (
-                  <FaPause className="text-white text-xl" />
-                ) : (
-                  <FaPlay className="text-white text-xl ml-1" />
-                )}
-              </button>
-            </div>
+            {/* Video Overlay Controls - Only show if no error */}
+            {!hasError && (
+              <>
+                <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                  <button
+                    onClick={togglePlay}
+                    className="w-14 h-14 bg-primary/90 flex items-center justify-center hover:bg-primary transition-all duration-300 shadow-lg shadow-primary/30"
+                  >
+                    {isPlaying ? (
+                      <FaPause className="text-white text-xl" />
+                    ) : (
+                      <FaPlay className="text-white text-xl ml-1" />
+                    )}
+                  </button>
+                </div>
 
-            {/* Mute/Unmute Button */}
-            <button
-              onClick={toggleMute}
-              className="absolute bottom-4 right-4 w-9 h-9 bg-black/70 backdrop-blur-sm border border-white/20 hover:border-primary/40 transition-all duration-300 flex items-center justify-center"
-            >
-              {isMuted ? (
-                <FaVolumeMute className="text-white text-xs" />
-              ) : (
-                <FaVolumeUp className="text-white text-xs" />
-              )}
-            </button>
+                {/* Mute/Unmute Button */}
+                <button
+                  onClick={toggleMute}
+                  className="absolute bottom-4 right-4 w-9 h-9 bg-black/70 backdrop-blur-sm border border-white/20 hover:border-primary/40 transition-all duration-300 flex items-center justify-center"
+                >
+                  {isMuted ? (
+                    <FaVolumeMute className="text-white text-xs" />
+                  ) : (
+                    <FaVolumeUp className="text-white text-xs" />
+                  )}
+                </button>
 
-            {/* Video Badge */}
-            <div className="absolute top-4 left-4 bg-black/70 backdrop-blur-sm px-3 py-1.5 border-l-4 border-primary">
-              <span className="text-white text-[10px] font-medium tracking-wider">VIDEO TESTIMONIAL</span>
-            </div>
+                {/* Video Badge */}
+                <div className="absolute top-4 left-4 bg-black/70 backdrop-blur-sm px-3 py-1.5 border-l-4 border-primary">
+                  <span className="text-white text-[10px] font-medium tracking-wider">VIDEO TESTIMONIAL</span>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>

@@ -12,15 +12,15 @@ export default function Hero() {
   // Hero images for carousel
   const slides = [
     {
-      image: './images/banner1.JPG',
+      image: '/images/banner1.JPG',
       alt: 'Drumming event'
     },
     {
-      image: './images/banner2.JPG',
+      image: '/images/banner2.JPG',
       alt: 'Djembe circle'
     },
     {
-      image: './images/banner3.JPG',
+      image: '/images/banner3.JPG',
       alt: 'Music festival'
     },
    

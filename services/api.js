@@ -251,7 +251,10 @@ submitLead(data) {
 
   // ========== BLOG ==========
   getBlogs(filters = {}) {
-    return this.request(API_ENDPOINTS.BLOG.GET_ALL, { params: filters, includeAuth: false });
+    return this.request(API_ENDPOINTS.BLOG.GET_ALL, { 
+      params: filters, 
+      includeAuth: false 
+    });
   }
 
   getBlogBySlug(slug) {
