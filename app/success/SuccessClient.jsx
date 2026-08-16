@@ -3,24 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { 
-  FaCheckCircle, 
-  FaTimesCircle, 
-  FaTicketAlt, 
-  FaDownload, 
-  FaHome, 
-  FaCalendar, 
-  FaClock, 
-  FaMapMarkerAlt, 
-  FaUser, 
-  FaPhone, 
-  FaEnvelope, 
-  FaWallet, 
-  FaArrowRight, 
-  FaPrint, 
-  FaSpinner,
-  FaFilePdf,
-} from 'react-icons/fa';
+import { FaCheckCircle, FaTimesCircle, FaTicketAlt, FaDownload, FaHome, FaCalendar, FaClock, FaMapMarkerAlt, FaUser, FaPhone, FaEnvelope, FaWallet, FaArrowRight, FaPrint, FaSpinner,FaFilePdf} from 'react-icons/fa';
 import ApiService from '@/services/api';
 import toast from 'react-hot-toast';
 import jsPDF from 'jspdf';
@@ -324,7 +307,7 @@ export default function SuccessClient() {
       pdf.text('PRICE', contentX + 75, detailsY + 8);
       pdf.setFontSize(8);
       pdf.setTextColor(...BLACK);
-      pdf.text(`₹${ticketPrice.toFixed(2)}`, contentX + 75, detailsY + 16);
+      pdf.text(`Rs ${ticketPrice.toFixed(2)}`, contentX + 75, detailsY + 16);
 
       pdf.setFontSize(6);
       pdf.setTextColor(...RED);
@@ -333,7 +316,7 @@ export default function SuccessClient() {
       pdf.setFontSize(9);
       pdf.setTextColor(...BLACK);
       pdf.setFont('helvetica', 'bold');
-      pdf.text(`₹${totalAmount.toFixed(2)}`, contentX + 105, detailsY + 17);
+      pdf.text(` Rs ${totalAmount.toFixed(2)}`, contentX + 105, detailsY + 17);
 
       // BOOKED BY - Compact
       const customerY = detailsY + 28;
