@@ -12,19 +12,19 @@ export default function Hero() {
   // Hero images for carousel
   const slides = [
     {
-      image: '/images/banner1.JPG',
+      image: '/images/banner1.jpg',
       alt: 'Drumming event'
     },
     {
-      image: '/images/banner2.JPG',
+      image: '/images/banner2.jpg',
       alt: 'Djembe circle'
     },
     {
-      image: '/images/banner3.JPG',
+      image: '/images/banner3.jpg',
       alt: 'Music festival'
     },
   ];
-
+  
   // Auto-slide every 5 seconds
   useEffect(() => {
     const interval = setInterval(() => {
