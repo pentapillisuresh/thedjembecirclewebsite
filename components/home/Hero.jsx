@@ -23,7 +23,6 @@ export default function Hero() {
       image: '/images/banner3.JPG',
       alt: 'Music festival'
     },
-   
   ];
 
   // Auto-slide every 5 seconds
@@ -39,7 +38,7 @@ export default function Hero() {
   };
 
   return (
-    <section className="relative h-screen flex items-center justify-center overflow-hidden">
+    <section className="relative h-[80vh] md:h-screen flex items-center justify-center overflow-hidden">
       {/* Background Image Carousel */}
       {slides.map((slide, index) => (
         <div
@@ -57,15 +56,15 @@ export default function Hero() {
       ))}
 
       {/* Carousel Navigation Dots */}
-      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-20 flex gap-3">
+      <div className="absolute bottom-4 md:bottom-8 left-1/2 transform -translate-x-1/2 z-20 flex gap-2 md:gap-3">
         {slides.map((_, index) => (
           <button
             key={index}
             onClick={() => goToSlide(index)}
-            className={`w-3 h-3 rounded-full transition-all duration-300 ${
+            className={`h-2 md:h-3 rounded-full transition-all duration-300 ${
               index === currentSlide
-                ? 'bg-primary w-8'
-                : 'bg-white/50 hover:bg-white/80'
+                ? 'bg-primary w-6 md:w-8'
+                : 'bg-white/50 hover:bg-white/80 w-2 md:w-3'
             }`}
             aria-label={`Go to slide ${index + 1}`}
           />
@@ -78,25 +77,25 @@ export default function Hero() {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: "easeInOut" }}
-          className="text-center max-w-4xl mx-auto"
+          className="text-center max-w-4xl mx-auto px-2 sm:px-4"
         >
-          <h1 className="text-5xl md:text-7xl font-extrabold leading-tight text-white">
+          <h1 className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-extrabold leading-tight text-white">
             Feel the Rhythm{' '}
-            <span className="text-primary">Join THE DJEMBE CIRCLE</span>
+            <span className="text-primary block sm:inline">Join THE DJEMBE CIRCLE</span>
           </h1>
 
-          <p className="mt-6 text-xl md:text-2xl text-gray-200 leading-relaxed max-w-3xl mx-auto drop-shadow-lg">
+          <p className="mt-3 md:mt-6 text-base sm:text-lg md:text-2xl text-gray-200 leading-relaxed max-w-3xl mx-auto drop-shadow-lg px-2">
             Experience the power of rhythm and connection through drumming. Book your spot now and let the music move you.
           </p>
 
-          <div className="mt-10 flex flex-wrap gap-4 justify-center">
+          <div className="mt-6 md:mt-10 flex flex-col sm:flex-row flex-wrap gap-3 md:gap-4 justify-center items-center px-4">
             <Link
               href="/events"
-              className="group relative px-8 py-4 rounded-full bg-primary text-white font-semibold text-sm transition-all duration-300 hover:bg-primary/80 hover:scale-105 shadow-lg shadow-primary/30 hover:shadow-primary/50"
+              className="group relative px-5 py-2.5 sm:px-8 sm:py-4 rounded-full bg-primary text-white font-semibold text-xs sm:text-sm transition-all duration-300 hover:bg-primary/80 hover:scale-105 shadow-lg shadow-primary/30 hover:shadow-primary/50 w-full sm:w-auto text-center"
             >
-              <span className="flex items-center gap-2">
+              <span className="flex items-center justify-center gap-2">
                 Explore Events
-                <FaArrowRight className="group-hover:translate-x-1 transition-transform duration-300" />
+                <FaArrowRight className="group-hover:translate-x-1 transition-transform duration-300 text-xs sm:text-sm" />
               </span>
             </Link>
             <button
@@ -108,10 +107,10 @@ export default function Hero() {
                   router.push('/login');
                 }
               }}
-              className="group relative px-8 py-4 rounded-full bg-white/10 backdrop-blur-sm border border-white/30 text-white font-semibold text-sm transition-all duration-300 hover:bg-white/20 hover:scale-105"
+              className="group relative px-5 py-2.5 sm:px-8 sm:py-4 rounded-full bg-white/10 backdrop-blur-sm border border-white/30 text-white font-semibold text-xs sm:text-sm transition-all duration-300 hover:bg-white/20 hover:scale-105 w-full sm:w-auto text-center"
             >
-              <span className="flex items-center gap-2">
-                <FaPlay className="text-primary" />
+              <span className="flex items-center justify-center gap-2">
+                <FaPlay className="text-primary text-xs sm:text-sm" />
                 Book Now
               </span>
             </button>

@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { FaUser, FaEnvelope, FaPhone, FaLock, FaArrowRight, FaShieldAlt } from 'react-icons/fa';
+import { FaUser, FaEnvelope, FaPhone, FaLock, FaArrowRight, FaShieldAlt, FaEye, FaEyeSlash } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import ApiService from "../../services/api"
 import { useAuth } from '../../lib/auth';
@@ -16,6 +16,7 @@ export default function Register() {
   const { login:userLogin } = useAuth();
 
   const [loading, setLoading] = useState(false);
+  const [showPin, setShowPin] = useState(false);
   const [form, setForm] = useState({
     fullName: '',
     email: '',
@@ -33,9 +34,9 @@ export default function Register() {
       return;
     }
   
-    // Basic validation
-    if (form.pin.length < 4 || isNaN(form.pin)) {
-      toast.error('PIN must be at least 4 digits');
+    // Basic validation - only check if PIN exists, no length restriction
+    if (!form.pin) {
+      toast.error('Please enter your PIN');
       return;
     }
   
@@ -148,20 +149,26 @@ export default function Register() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">PIN (4+ digits)</label>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Password</label>
             <div className="relative">
               <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">
                 <FaLock />
               </div>
               <input
-                type="password"
-                minLength="4"
+                type={showPin ? "text" : "password"}
                 value={form.pin}
                 onChange={(e) => setForm({ ...form, pin: e.target.value })}
-                className="w-full bg-black/50 border border-white/10 pl-12 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary/50 transition-colors duration-300"
-                placeholder="Enter your PIN (min 4 digits)"
+                className="w-full bg-black/50 border border-white/10 pl-12 pr-12 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary/50 transition-colors duration-300"
+                placeholder="Enter your Password"
                 required
               />
+              <button
+                type="button"
+                onClick={() => setShowPin(!showPin)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors duration-300"
+              >
+                {showPin ? <FaEyeSlash size={18} /> : <FaEye size={18} />}
+              </button>
             </div>
           </div>
 

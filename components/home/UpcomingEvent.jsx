@@ -52,24 +52,31 @@ export default function UpcomingEvent() {
   }, []);
 
   // Helper to format date and time
-  const formatDate = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  };
+const formatDate = (dateString) => {
+  if (!dateString) return '';
 
-  const formatTime = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    return date.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+  const date = new Date(dateString);
+
+  return date.toLocaleDateString('en-IN', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    timeZone: 'Asia/Kolkata',
+  });
+};
+
+const formatTime = (dateString) => {
+  if (!dateString) return '';
+
+  const date = new Date(dateString);
+
+  return date.toLocaleTimeString('en-IN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+    timeZone: 'Asia/Kolkata',
+  });
+};
 
   // Get the cheapest ticket price (or show range)
   const getTicketPrice = (ticketClasses) => {
@@ -144,41 +151,38 @@ export default function UpcomingEvent() {
           className="grid grid-cols-1 lg:grid-cols-2 gap-0 border border-white/10 bg-white/5 backdrop-blur-sm overflow-hidden hover:border-primary/30 transition-all duration-500"
         >
           {/* Left side - Image */}
-          <div className="relative h-[350px] lg:h-auto min-h-[350px] overflow-hidden bg-gray-800">
-            {event.bannerImage ? (
-              <Image
-                src={event.bannerImage}
-                alt={event.title || 'Upcoming Event'}
-                fill
-                className="object-cover"
-                priority
-                onError={(e) => {
-                  console.error('Failed to load image:', event.bannerImage);
-                  e.currentTarget.style.display = 'none';
-                  // Show fallback
-                  const parent = e.currentTarget.parentElement;
-                  if (parent) {
-                    const fallback = document.createElement('div');
-                    fallback.className = 'w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-purple-500/20';
-                    fallback.innerHTML = '<span className="text-6xl">🥁</span>';
-                    parent.appendChild(fallback);
-                  }
-                }}
-                unoptimized={true}
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-purple-500/20">
-                <span className="text-6xl">🥁</span>
-              </div>
-            )}
-            <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-transparent lg:bg-gradient-to-r"></div>
-            
-            <div className="absolute bottom-6 left-6 right-6 lg:hidden">
-              <div className="bg-black/80 backdrop-blur-sm p-4 border-l-4 border-primary">
-                <h3 className="text-white font-bold text-xl">{event.title}</h3>
-              </div>
-            </div>
-          </div>
+         {/* Left side - Full Image */}
+<div className="relative h-full min-h-[350px] overflow-hidden bg-black flex items-center justify-center">
+  {event.bannerImage ? (
+    <Image
+      src={event.bannerImage}
+      alt={event.title || 'Upcoming Event'}
+      fill
+      className="object-contain"
+      priority
+      unoptimized
+      onError={(e) => {
+        console.error('Failed to load image:', event.bannerImage);
+        e.currentTarget.style.display = 'none';
+      }}
+    />
+  ) : (
+    <div className="w-full h-full flex items-center justify-center bg-black">
+      <span className="text-6xl">🥁</span>
+    </div>
+  )}
+
+  {/* Optional dark overlay */}
+  <div className="absolute inset-0 bg-black/10 pointer-events-none" />
+
+  <div className="absolute bottom-6 left-6 right-6 lg:hidden">
+    <div className="bg-black/80 backdrop-blur-sm p-4 border-l-4 border-primary">
+      <h3 className="text-white font-bold text-xl">
+        {event.title}
+      </h3>
+    </div>
+  </div>
+</div>
 
           {/* Right side - Content */}
           <div className="p-6 md:p-10 flex flex-col justify-center">

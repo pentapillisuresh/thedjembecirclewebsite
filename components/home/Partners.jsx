@@ -182,35 +182,7 @@ export default function Partners() {
           </motion.div>
         </div>
 
-        {/* Partner Stats with SVG Icons */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-          viewport={{ once: true }}
-          className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-3 text-center"
-        >
-          <div className="bg-white/5 border border-white/10 p-3 hover:border-primary/40 transition-all duration-300">
-            <CorporateIcon />
-            <p className="text-white font-bold text-sm">10+</p>
-            <p className="text-gray-400 text-[10px]">Corporate Partners</p>
-          </div>
-          <div className="bg-white/5 border border-white/10 p-3 hover:border-primary/40 transition-all duration-300">
-            <EducationIcon />
-            <p className="text-white font-bold text-sm">5+</p>
-            <p className="text-gray-400 text-[10px]">Educational Institutions</p>
-          </div>
-          <div className="bg-white/5 border border-white/10 p-3 hover:border-primary/40 transition-all duration-300">
-            <CafeIcon />
-            <p className="text-white font-bold text-sm">14+</p>
-            <p className="text-gray-400 text-[10px]">Cafés & Creative Spaces</p>
-          </div>
-          <div className="bg-white/5 border border-white/10 p-3 hover:border-primary/40 transition-all duration-300">
-            <FestivalIcon />
-            <p className="text-white font-bold text-sm">7+</p>
-            <p className="text-gray-400 text-[10px]">Festivals & Events</p>
-          </div>
-        </motion.div>
+       
       </div>
     </section>
   );

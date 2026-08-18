@@ -19,21 +19,27 @@ const getMediaUrl = (path) => {
 // Helper to format date
 const formatDate = (dateString) => {
   if (!dateString) return 'TBD';
+
   const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', {
+
+  return date.toLocaleDateString('en-IN', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
+    timeZone: 'Asia/Kolkata',
   });
 };
 
-// Helper to format time
 const formatTime = (dateString) => {
   if (!dateString) return 'TBD';
+
   const date = new Date(dateString);
-  return date.toLocaleTimeString('en-US', {
+
+  return date.toLocaleTimeString('en-IN', {
     hour: '2-digit',
     minute: '2-digit',
+    hour12: true,
+    timeZone: 'Asia/Kolkata',
   });
 };
 

@@ -5,79 +5,113 @@ import { useEffect, useRef, useState } from 'react';
 export default function LandingVideo({ onComplete }) {
   const videoRef = useRef(null);
   const [started, setStarted] = useState(false);
-
-  const startVideo = async () => {
-    const video = videoRef.current;
-
-    if (!video) return;
-
-    try {
-      video.muted = false;
-      video.volume = 1;
-
-      await video.play();
-
-      setStarted(true);
-    } catch (error) {
-      console.error('Video playback failed:', error);
-    }
-  };
+  const [shouldShow, setShouldShow] = useState(true);
 
   useEffect(() => {
-    const video = videoRef.current;
+    // Check if video has already been watched in this session
+    const hasWatched = sessionStorage.getItem('landingVideoWatched');
+    if (hasWatched) {
+      setShouldShow(false);
+      if (onComplete) {
+        onComplete();
+      }
+      return;
+    }
 
+    const video = videoRef.current;
     if (!video) return;
 
+    const playVideo = () => {
+      // Unmute before playing
+      video.muted = false;
+      
+      video.play()
+        .then(() => {
+          console.log('Video playing with audio!');
+          setStarted(true);
+        })
+        .catch(err => {
+          console.error('Play failed:', err);
+          // If autoplay with audio fails, try muted first
+          video.muted = true;
+          video.play().catch(e => console.error('Even muted play failed:', e));
+        });
+    };
+
+    // Auto play with user gesture
+    const handleInteraction = () => {
+      playVideo();
+      document.removeEventListener('click', handleInteraction);
+      document.removeEventListener('touchstart', handleInteraction);
+    };
+
+    // Try to play automatically first
+    setTimeout(playVideo, 200);
+
+    // Also listen for user interaction
+    document.addEventListener('click', handleInteraction);
+    document.addEventListener('touchstart', handleInteraction);
+
+    // Call onComplete when video ends
     const handleEnded = () => {
-      onComplete();
+      console.log('Video ended, calling onComplete...');
+      // Store flag in sessionStorage
+      sessionStorage.setItem('landingVideoWatched', 'true');
+      if (onComplete) {
+        onComplete();
+      }
     };
 
     video.addEventListener('ended', handleEnded);
 
     return () => {
+      document.removeEventListener('click', handleInteraction);
+      document.removeEventListener('touchstart', handleInteraction);
       video.removeEventListener('ended', handleEnded);
     };
   }, [onComplete]);
 
-  return (
-    <div className="fixed inset-0 z-[9999] bg-black overflow-hidden">
+  const handleSkip = () => {
+    // Store flag in sessionStorage when skipped
+    sessionStorage.setItem('landingVideoWatched', 'true');
+    if (onComplete) {
+      onComplete();
+    }
+  };
 
-      {/* Video */}
+  // If video shouldn't show, return null
+  if (!shouldShow) {
+    return null;
+  }
+
+  return (
+    <div className="fixed inset-0 z-[9999] bg-black">
       <video
         ref={videoRef}
-        src="/images/djvideo2.mp4"
+        src="/videos/djvideo2.mp4"
         playsInline
         preload="auto"
+        muted={false}
         className="w-full h-full object-cover"
       />
-
-      {/* Overlay */}
-      <div className="absolute inset-0 bg-black/20 pointer-events-none" />
-
-      {/* Start Button */}
+      
       {!started && (
-        <div className="absolute inset-0 z-20 flex items-center justify-center">
-
-          <button
-            onClick={startVideo}
-            className="px-8 py-4 rounded-full border border-white/40 bg-black/50 backdrop-blur-md text-white text-lg font-medium hover:bg-white hover:text-black transition-all duration-300"
-          >
-            ▶ Enter Djembe Circle
-          </button>
-
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="text-white text-center">
+            <svg className="w-16 h-16 mx-auto text-white/50" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+            <p className="mt-4 text-white/60 text-sm">Click to play with sound</p>
+          </div>
         </div>
       )}
-
-      {/* Skip */}
-      {started && (
-        <button
-          onClick={onComplete}
-          className="absolute bottom-8 right-8 z-20 px-5 py-2.5 rounded-full border border-white/30 bg-black/40 backdrop-blur-sm text-white text-sm hover:bg-white hover:text-black transition-all duration-300"
-        >
-          Skip
-        </button>
-      )}
-
+      
+      <button
+        onClick={handleSkip}
+        className="absolute bottom-8 right-8 z-20 px-5 py-2.5 rounded-full border border-white/30 bg-black/40 backdrop-blur-sm text-white text-sm hover:bg-white hover:text-black transition-all duration-300"
+      >
+        Skip
+      </button>
     </div>
   );
 }
