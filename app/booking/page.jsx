@@ -10,7 +10,7 @@ import toast from 'react-hot-toast';
 import { loadRazorpay } from '../../components/layout/loadRazorPay';
 
 export default function Booking() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [events, setEvents] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -30,18 +30,22 @@ export default function Booking() {
   const [couponLoading, setCouponLoading] = useState(false);
   const [couponError, setCouponError] = useState('');
   const [couponValidationDetails, setCouponValidationDetails] = useState(null);
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
 
-  // Redirect if not logged in
+  // Redirect if not logged in - only after auth is fully loaded
   useEffect(() => {
-    if (!user) {
-      router.push('/register?redirect=booking');
+    if (!authLoading) {
+      setIsAuthChecking(false);
+      if (!user) {
+        router.push('/register?redirect=booking');
+      }
     }
-  }, [user, router]);
+  }, [user, authLoading, router]);
 
   // Fetch upcoming events
   useEffect(() => {
     const fetchEvents = async () => {
-      if (!user) return;
+      if (!user || authLoading) return;
       try {
         setLoading(true);
         const data = await ApiService.getUpcomingEvents();
@@ -69,7 +73,7 @@ export default function Booking() {
     };
 
     fetchEvents();
-  }, [user]);
+  }, [user, authLoading]);
 
   // Populate user info when available
   useEffect(() => {
@@ -367,7 +371,22 @@ export default function Booking() {
     return selectedTicketClass?.price || 0;
   };
 
-  if (!user) return null;
+  // Show loading while checking authentication
+  if (isAuthChecking || authLoading) {
+    return (
+      <section className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-center">
+          <FaSpinner className="text-4xl text-primary animate-spin mx-auto mb-4" />
+          <p className="text-gray-400">Checking authentication...</p>
+        </div>
+      </section>
+    );
+  }
+
+  // If no user, return null (redirect will happen)
+  if (!user) {
+    return null;
+  }
 
   if (loading) {
     return (
@@ -423,12 +442,12 @@ export default function Booking() {
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 md:gap-8">
           <motion.div
             initial={{ opacity: 0, x: -30 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6 }}
-            className="lg:col-span-3 border border-white/10 bg-white/5 backdrop-blur-sm p-8"
+            className="lg:col-span-3 border border-white/10 bg-white/5 backdrop-blur-sm p-6 md:p-8"
           >
             <h2 className="text-2xl font-bold text-white mb-6">Booking Details</h2>
             <form onSubmit={handlePayment} className="space-y-5">
@@ -537,7 +556,7 @@ export default function Booking() {
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Coupon Code
                 </label>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <div className="relative flex-1">
                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">
                       <FaTag />
@@ -567,7 +586,7 @@ export default function Booking() {
                       type="button"
                       onClick={applyCoupon}
                       disabled={couponLoading || !form.couponCode}
-                      className="px-6 py-3 bg-primary/20 hover:bg-primary/30 text-primary font-semibold border border-primary/30 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-6 py-3 bg-primary/20 hover:bg-primary/30 text-primary font-semibold border border-primary/30 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
                     >
                       {couponLoading ? (
                         <FaSpinner className="animate-spin" />
@@ -579,7 +598,7 @@ export default function Booking() {
                     <button
                       type="button"
                       onClick={removeCoupon}
-                      className="px-6 py-3 bg-red-500/20 hover:bg-red-500/30 text-red-400 font-semibold border border-red-500/30 transition-all duration-300"
+                      className="px-6 py-3 bg-red-500/20 hover:bg-red-500/30 text-red-400 font-semibold border border-red-500/30 transition-all duration-300 w-full sm:w-auto"
                     >
                       <FaTimes />
                     </button>
@@ -602,7 +621,7 @@ export default function Booking() {
                 {/* Coupon Success Message */}
                 {coupon && (
                   <div className="mt-2 bg-green-500/10 border border-green-500/30 p-3 rounded">
-                    <div className="flex justify-between items-center">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                       <div>
                         <p className="text-green-400 font-semibold">{coupon.code}</p>
                         <p className="text-xs text-gray-400">{coupon.discountPercentage}% discount applied</p>
@@ -656,6 +675,65 @@ export default function Booking() {
                 <p className="text-xs text-gray-500 mt-2">Maximum 10 tickets per booking</p>
               </div>
 
+              {/* Ticket Summary on Left Side */}
+              <div className="border border-white/10 bg-white/5 backdrop-blur-sm p-4">
+                <h4 className="text-sm font-semibold text-white mb-3">Ticket Summary</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-400">Tickets</span>
+                    <span className="text-white font-semibold">× {form.tickets}</span>
+                  </div>
+                  
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-400">Price per ticket</span>
+                    <span className="text-white font-semibold">
+                      ₹{getBasePrice()}
+                    </span>
+                  </div>
+                  
+                  <div className="flex justify-between text-sm pt-2 border-t border-white/5">
+                    <span className="text-gray-400">Subtotal</span>
+                    <span className="text-white font-semibold">
+                      ₹{(getBasePrice() * form.tickets).toFixed(2)}
+                    </span>
+                  </div>
+
+                  {coupon && (
+                    <div className="flex justify-between text-sm text-green-400">
+                      <span>Discount ({coupon.discountPercentage}%)</span>
+                      <span>- ₹{calculateDiscount().toFixed(2)}</span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between text-lg font-bold pt-3 border-t border-white/10">
+                    <span className="text-gray-400">Total Amount</span>
+                    <span className="text-primary">
+                      ₹{calculateTotal().toFixed(2)}
+                    </span>
+                  </div>
+
+                  {/* Number of Tickets Below */}
+                  <div className="mt-2 text-center">
+                    <p className="text-sm text-gray-400">
+                      <span className="text-white font-semibold">{form.tickets}</span> ticket{form.tickets > 1 ? 's' : ''} booked
+                    </p>
+                  </div>
+
+                  {coupon && (
+                    <p className="text-xs text-green-400 mt-1 text-center">
+                      You saved ₹{calculateDiscount().toFixed(2)} with coupon!
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Cover Charge Information */}
+              <div className="p-4 bg-primary/10 border border-primary/20 rounded-md">
+                <p className="text-sm text-gray-300 leading-relaxed">
+                  <span className="text-primary font-semibold">ℹ️</span> Your ticket includes a <span className="text-white font-semibold">₹300 cover charge</span>, fully redeemable on <span className="text-white font-semibold">Food &amp; Beverages (F&amp;B)</span>.
+                </p>
+              </div>
+
               <button
                 type="submit"
                 disabled={processingPayment}
@@ -674,7 +752,7 @@ export default function Booking() {
                 )}
               </button>
 
-              <div className="flex items-center justify-center gap-4 text-xs text-gray-500">
+              <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-gray-500">
                 <div className="flex items-center gap-1">
                   <FaCheckCircle className="text-green-500" />
                   <span>Secure Payment</span>
@@ -697,7 +775,7 @@ export default function Booking() {
             transition={{ duration: 0.6 }}
             className="lg:col-span-2"
           >
-            <div className="border border-white/10 bg-white/5 backdrop-blur-sm p-6 h-fit sticky top-24">
+            <div className="border border-white/10 bg-white/5 backdrop-blur-sm p-6 h-fit lg:sticky lg:top-24">
               <h3 className="text-xl font-bold text-white mb-4">Booking Summary</h3>
 
               {selectedEvent ? (
@@ -708,17 +786,17 @@ export default function Booking() {
                   </div>
 
                   <div className="flex items-center gap-3 text-gray-300">
-                    <FaCalendar className="text-primary" />
+                    <FaCalendar className="text-primary flex-shrink-0" />
                     <span className="text-sm">{formatDate(selectedEvent.date)}</span>
                   </div>
 
                   <div className="flex items-center gap-3 text-gray-300">
-                    <FaClock className="text-primary" />
+                    <FaClock className="text-primary flex-shrink-0" />
                     <span className="text-sm">{formatTime(selectedEvent.date)}</span>
                   </div>
 
                   <div className="flex items-center gap-3 text-gray-300">
-                    <FaMapMarkerAlt className="text-primary" />
+                    <FaMapMarkerAlt className="text-primary flex-shrink-0" />
                     <span className="text-sm">{selectedEvent.venue || 'TBD'}</span>
                   </div>
 
@@ -727,35 +805,35 @@ export default function Booking() {
                     
                     <div className="space-y-2">
                       <div className="flex items-center gap-3 text-gray-300">
-                        <FaUser className="text-primary text-sm" />
-                        <div>
+                        <FaUser className="text-primary text-sm flex-shrink-0" />
+                        <div className="min-w-0">
                           <p className="text-xs text-gray-500">Full Name</p>
-                          <p className="text-white text-sm font-medium">{form.fullName || 'Not provided'}</p>
+                          <p className="text-white text-sm font-medium truncate">{form.fullName || 'Not provided'}</p>
                         </div>
                       </div>
                       
                       <div className="flex items-center gap-3 text-gray-300">
-                        <FaPhone className="text-primary text-sm" />
-                        <div>
+                        <FaPhone className="text-primary text-sm flex-shrink-0" />
+                        <div className="min-w-0">
                           <p className="text-xs text-gray-500">Mobile</p>
-                          <p className="text-white text-sm font-medium">{form.mobile || 'Not provided'}</p>
+                          <p className="text-white text-sm font-medium truncate">{form.mobile || 'Not provided'}</p>
                         </div>
                       </div>
                       
                       <div className="flex items-center gap-3 text-gray-300">
-                        <FaEnvelope className="text-primary text-sm" />
-                        <div>
+                        <FaEnvelope className="text-primary text-sm flex-shrink-0" />
+                        <div className="min-w-0">
                           <p className="text-xs text-gray-500">Email</p>
-                          <p className="text-white text-sm font-medium">{form.email || 'Not provided'}</p>
+                          <p className="text-white text-sm font-medium truncate">{form.email || 'Not provided'}</p>
                         </div>
                       </div>
 
                       {coupon && (
                         <div className="flex items-center gap-3 text-gray-300 pt-2 border-t border-white/5">
-                          <FaTag className="text-green-400 text-sm" />
-                          <div>
+                          <FaTag className="text-green-400 text-sm flex-shrink-0" />
+                          <div className="min-w-0">
                             <p className="text-xs text-gray-500">Coupon Applied</p>
-                            <p className="text-green-400 text-sm font-medium">{coupon.code} ({coupon.discountPercentage}% off)</p>
+                            <p className="text-green-400 text-sm font-medium truncate">{coupon.code} ({coupon.discountPercentage}% off)</p>
                           </div>
                         </div>
                       )}
@@ -765,53 +843,57 @@ export default function Booking() {
                   <div className="border-t border-white/10 pt-4 mt-4">
                     <p className="text-xs text-gray-500 uppercase tracking-wider mb-3">Ticket Summary</p>
                     
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-400">Ticket Class</span>
-                      <span className="text-white font-semibold">
-                        {selectedTicketClass?.name || 'Standard'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm mt-2">
-                      <span className="text-gray-400">Price per ticket</span>
-                      <span className="text-white font-semibold">
-                        ₹{getBasePrice()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm mt-2">
-                      <span className="text-gray-400">Tickets</span>
-                      <span className="text-white font-semibold">× {form.tickets}</span>
-                    </div>
-                    
-                    <div className="flex justify-between text-sm mt-2 pt-2 border-t border-white/5">
-                      <span className="text-gray-400">Subtotal</span>
-                      <span className="text-white font-semibold">
-                        ₹{(getBasePrice() * form.tickets).toFixed(2)}
-                      </span>
-                    </div>
-
-                    {coupon && (
-                      <div className="flex justify-between text-sm mt-2 text-green-400">
-                        <span>Discount ({coupon.discountPercentage}%)</span>
-                        <span>- ₹{calculateDiscount().toFixed(2)}</span>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-400">Tickets</span>
+                        <span className="text-white font-semibold">× {form.tickets}</span>
                       </div>
-                    )}
+                      
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-400">Price per ticket</span>
+                        <span className="text-white font-semibold">
+                          ₹{getBasePrice()}
+                        </span>
+                      </div>
+                      
+                      <div className="flex justify-between text-sm pt-2 border-t border-white/5">
+                        <span className="text-gray-400">Subtotal</span>
+                        <span className="text-white font-semibold">
+                          ₹{(getBasePrice() * form.tickets).toFixed(2)}
+                        </span>
+                      </div>
 
-                    <div className="flex justify-between text-lg font-bold mt-3 pt-3 border-t border-white/10">
-                      <span className="text-gray-400">Total Amount</span>
-                      <span className="text-primary">
-                        ₹{calculateTotal().toFixed(2)}
-                      </span>
+                      {coupon && (
+                        <div className="flex justify-between text-sm text-green-400">
+                          <span>Discount ({coupon.discountPercentage}%)</span>
+                          <span>- ₹{calculateDiscount().toFixed(2)}</span>
+                        </div>
+                      )}
+
+                      <div className="flex justify-between text-lg font-bold pt-3 border-t border-white/10">
+                        <span className="text-gray-400">Total Amount</span>
+                        <span className="text-primary">
+                          ₹{calculateTotal().toFixed(2)}
+                        </span>
+                      </div>
+
+                      {/* Number of Tickets Below */}
+                      <div className="mt-2 text-center">
+                        <p className="text-sm text-gray-400">
+                          <span className="text-white font-semibold">{form.tickets}</span> ticket{form.tickets > 1 ? 's' : ''} booked
+                        </p>
+                      </div>
+
+                      {coupon && (
+                        <p className="text-xs text-green-400 mt-2 text-center">
+                          You saved ₹{calculateDiscount().toFixed(2)} with coupon!
+                        </p>
+                      )}
                     </div>
-
-                    {coupon && (
-                      <p className="text-xs text-green-400 mt-2">
-                        You saved ₹{calculateDiscount().toFixed(2)} with coupon!
-                      </p>
-                    )}
                   </div>
 
                   <div className="flex items-center gap-2 text-xs text-gray-500 mt-4 pt-3 border-t border-white/10">
-                    <FaWallet className="text-primary" />
+                    <FaWallet className="text-primary flex-shrink-0" />
                     <span>Secure payment via Razorpay</span>
                   </div>
                 </div>
