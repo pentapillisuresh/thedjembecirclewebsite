@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
@@ -15,10 +15,12 @@ import {
   FaTimesCircle,
   FaClock as FaClockIcon,
   FaSpinner,
+  FaFilePdf,
 } from 'react-icons/fa';
 import { useAuth } from '@/lib/auth';
 import ApiService from '@/services/api';
 import toast from 'react-hot-toast';
+import jsPDF from 'jspdf';
 
 export default function MyBookings() {
   const { user } = useAuth();
@@ -26,6 +28,7 @@ export default function MyBookings() {
   const [filter, setFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [downloadingId, setDownloadingId] = useState(null);
 
   useEffect(() => {
     if (!user) return;
@@ -34,7 +37,6 @@ export default function MyBookings() {
         setLoading(true);
         const data = await ApiService.getUserOrders();
         if (data.success && data.data) {
-          // data.data contains { total, orders, limit, offset }
           setBookings(data.data.orders || []);
         } else {
           setError('Failed to load bookings');
@@ -50,18 +52,365 @@ export default function MyBookings() {
     fetchBookings();
   }, [user]);
 
-  // Filter bookings based on event date
-  const getFilteredBookings = () => {
-    const now = new Date();
-    return bookings.filter((booking) => {
-      const eventDate = booking.event?.date ? new Date(booking.event.date) : null;
-      if (filter === 'all') return true;
-      if (filter === 'upcoming') return eventDate && eventDate >= now && booking.status !== 'cancelled';
-      if (filter === 'past') return eventDate && eventDate < now && booking.status !== 'cancelled';
-      if (filter === 'cancelled') return booking.status === 'cancelled';
-      return true;
-    });
+  const generateBookingId = (order) => {
+    if (!order) return 'TJC000000000';
+    const date = order.event?.date ? new Date(order.event.date) : new Date();
+    const year = date.getFullYear().toString().slice(-2);
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const random = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+    return `TJC${year}${month}${day}${random}`;
   };
+
+ const downloadTicketPDF = async (order) => {
+  if (!order) {
+    toast.error('Order data not available');
+    return;
+  }
+
+  setDownloadingId(order.id);
+
+  try {
+    const QRCode = (await import('qrcode')).default;
+    const JsBarcode = (await import('jsbarcode')).default;
+
+    const pdf = new jsPDF({
+      orientation: 'landscape',
+      unit: 'mm',
+      format: [280, 160],
+      compress: true,
+    });
+
+    // DATA
+    const bookingId = generateBookingId(order);
+    const totalTickets = order.items?.reduce((sum, item) => sum + Number(item.quantity || 0), 0) || 1;
+    const ticketClass = order.items?.[0]?.ticketClass?.name || 'General Admission';
+    const ticketPrice = Number(order.items?.[0]?.ticketClass?.price) || Number(order.totalAmount || 0) / totalTickets || 0;
+    const totalAmount = Number(order.totalAmount || ticketPrice * totalTickets);
+    const eventTitle = order.event?.title || 'THE DJEMBE CIRCLE';
+    const eventDescription = order.event?.description || 'DRUM CIRCLE EXPERIENCE';
+    const eventDate = order.event?.date;
+    const eventDateWithDay = formatDateWithDay(eventDate);
+    const shortDate = formatDateShort(eventDate);
+    const eventTime = formatTime(eventDate);
+    const venue = order.event?.venue || 'TJC Community Center, Bangalore, Karnataka';
+    const customerName = order.User?.name || 'N/A';
+    const customerPhone = order.User?.phone || 'N/A';
+    const paymentIdValue = order.razorpayPaymentId || 'N/A';
+
+    const RED = [216, 39, 46];
+    const DARK_RED = [190, 25, 35];
+    const BLACK = [15, 15, 15];
+    const DARK_GRAY = [70, 70, 70];
+    const GRAY = [110, 110, 110];
+    const LIGHT_GRAY = [220, 220, 220];
+    const GREEN = [25, 145, 65];
+    const WHITE = [255, 255, 255];
+
+    // TICKET DIMENSIONS
+    const ticketX = 4;
+    const ticketY = 4;
+    const leftY = ticketY; // <-- Add this line
+    const ticketW = 272;
+    const ticketH = 152;
+    const leftW = 65;
+    const middleW = 135;
+    const rightW = ticketW - leftW - middleW;
+    const leftX = ticketX;
+    const middleX = leftX + leftW;
+    const rightX = middleX + middleW;
+
+    // BACKGROUND
+    pdf.setFillColor(245, 245, 245);
+    pdf.rect(0, 0, 280, 160, 'F');
+
+    // MAIN WHITE TICKET
+    pdf.setFillColor(...WHITE);
+    pdf.roundedRect(ticketX, ticketY, ticketW, ticketH, 5, 5, 'F');
+
+    // LEFT IMAGE PANEL
+    try {
+      const imageData = await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth;
+          canvas.height = img.naturalHeight;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/png'));
+        };
+        img.onerror = reject;
+        img.src = '/images/ticket-left-panel.png';
+      });
+      pdf.addImage(imageData, 'PNG', leftX, leftY, leftW, ticketH, undefined, 'FAST');
+    } catch (imageError) {
+      pdf.setFillColor(...DARK_RED);
+      pdf.rect(leftX, leftY, leftW, ticketH, 'F');
+    }
+
+    // Dark overlay
+    pdf.setFillColor(0, 0, 0);
+    pdf.setGState(new pdf.GState({ opacity: 0.10 }));
+    pdf.rect(leftX, leftY, leftW, ticketH, 'F');
+    pdf.setGState(new pdf.GState({ opacity: 1 }));
+
+    // MIDDLE SECTION
+    const contentX = middleX + 8;
+
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(6);
+    pdf.setTextColor(...RED);
+    pdf.text('EVENT', contentX, ticketY + 14);
+
+    pdf.setFontSize(16);
+    pdf.setTextColor(...BLACK);
+    pdf.text(eventTitle.toUpperCase(), contentX, ticketY + 27);
+
+    pdf.setFontSize(8);
+    pdf.setTextColor(...DARK_GRAY);
+    pdf.text(eventDescription.toUpperCase(), contentX, ticketY + 36);
+
+    // EVENT INFORMATION
+    const infoY = ticketY + 50;
+
+    pdf.setFontSize(6);
+    pdf.setTextColor(...RED);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('DATE', contentX + 8, infoY);
+    pdf.setFontSize(9);
+    pdf.setTextColor(...BLACK);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(eventDateWithDay, contentX + 8, infoY + 8);
+
+    pdf.setFontSize(6);
+    pdf.setTextColor(...RED);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('TIME', contentX + 8, infoY + 20);
+    pdf.setFontSize(9);
+    pdf.setTextColor(...BLACK);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(`${eventTime} Onwards`, contentX + 8, infoY + 28);
+
+    pdf.setFontSize(6);
+    pdf.setTextColor(...RED);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('VENUE', contentX + 8, infoY + 40);
+    pdf.setFontSize(7);
+    pdf.setTextColor(...BLACK);
+    pdf.setFont('helvetica', 'normal');
+    const venueLines = pdf.splitTextToSize(venue, 50);
+    pdf.text(venueLines, contentX + 8, infoY + 48);
+
+    // VERTICAL DIVIDER
+    pdf.setDrawColor(...LIGHT_GRAY);
+    pdf.setLineWidth(0.3);
+    pdf.line(middleX + 72, infoY - 2, middleX + 72, infoY + 52);
+
+    // BOOKING ID
+    const rightInfoX = middleX + 78;
+    pdf.setFontSize(6);
+    pdf.setTextColor(...RED);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('BOOKING ID', rightInfoX, infoY);
+    pdf.setFontSize(8);
+    pdf.setTextColor(...BLACK);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(bookingId, rightInfoX, infoY + 8);
+
+    pdf.setFontSize(6);
+    pdf.setTextColor(...RED);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('PAYMENT ID', rightInfoX, infoY + 20);
+    pdf.setFontSize(7);
+    pdf.setTextColor(...BLACK);
+    pdf.setFont('helvetica', 'normal');
+    const paymentText = pdf.splitTextToSize(paymentIdValue, 45);
+    pdf.text(paymentText, rightInfoX, infoY + 28);
+
+    // TICKET DETAILS DIVIDER
+    const detailsY = ticketY + 108;
+    pdf.setDrawColor(...LIGHT_GRAY);
+    pdf.line(contentX, detailsY, rightX - 10, detailsY);
+
+    // TICKET TYPE - Compact row
+    pdf.setFontSize(6);
+    pdf.setTextColor(...RED);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('TICKET TYPE', contentX, detailsY + 8);
+    pdf.setFontSize(8);
+    pdf.setTextColor(...BLACK);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(ticketClass, contentX, detailsY + 16);
+
+    pdf.setFontSize(6);
+    pdf.setTextColor(...RED);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('QTY', contentX + 50, detailsY + 8);
+    pdf.setFontSize(8);
+    pdf.setTextColor(...BLACK);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(String(totalTickets), contentX + 50, detailsY + 16);
+
+    pdf.setFontSize(6);
+    pdf.setTextColor(...RED);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('PRICE', contentX + 75, detailsY + 8);
+    pdf.setFontSize(8);
+    pdf.setTextColor(...BLACK);
+    pdf.text(`Rs ${ticketPrice.toFixed(2)}`, contentX + 75, detailsY + 16);
+
+    pdf.setFontSize(6);
+    pdf.setTextColor(...RED);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('TOTAL', contentX + 105, detailsY + 8);
+    pdf.setFontSize(9);
+    pdf.setTextColor(...BLACK);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(` Rs ${totalAmount.toFixed(2)}`, contentX + 105, detailsY + 17);
+
+    // BOOKED BY - Compact
+    const customerY = detailsY + 28;
+    pdf.setDrawColor(...LIGHT_GRAY);
+    pdf.line(contentX, customerY - 3, rightX - 10, customerY - 3);
+
+    pdf.setFontSize(6);
+    pdf.setTextColor(...RED);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('BOOKED BY', contentX, customerY + 4);
+    pdf.setFontSize(8);
+    pdf.setTextColor(...BLACK);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(customerName, contentX, customerY + 12);
+    pdf.setFontSize(7);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(customerPhone, contentX, customerY + 19);
+
+    // ORDER STATUS
+    const statusX = contentX + 80;
+    pdf.setFontSize(6);
+    pdf.setTextColor(...RED);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('ORDER STATUS', statusX, customerY + 4);
+    pdf.setFontSize(8);
+    pdf.setTextColor(...GREEN);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('CONFIRMED', statusX, customerY + 14);
+
+    // RIGHT TEAR-OFF AREA
+    pdf.setDrawColor(180, 180, 180);
+    pdf.setLineWidth(0.35);
+    for (let y = ticketY + 4; y < ticketY + ticketH - 4; y += 5) {
+      pdf.line(rightX, y, rightX, Math.min(y + 2.5, ticketY + ticketH - 4));
+    }
+
+    // ADMIT ONE
+    const admitX = rightX + 8;
+    const admitW = rightW - 16;
+    pdf.setFillColor(...RED);
+    pdf.roundedRect(admitX, ticketY + 12, admitW, 11, 2, 2, 'F');
+    pdf.setFontSize(10);
+    pdf.setTextColor(...WHITE);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('ADMIT ONE', admitX + admitW / 2, ticketY + 20, { align: 'center' });
+
+    // QR CODE
+    const qrData = JSON.stringify({
+      bookingId,
+      orderId: order.id,
+      paymentId: paymentIdValue,
+      eventId: order.event?.id,
+      event: eventTitle,
+      tickets: totalTickets,
+    });
+
+    const qrDataUrl = await QRCode.toDataURL(qrData, {
+      width: 400,
+      margin: 1,
+      errorCorrectionLevel: 'H',
+    });
+
+    const qrSize = 35;
+    pdf.addImage(qrDataUrl, 'PNG', rightX + (rightW - qrSize) / 2, ticketY + 28, qrSize, qrSize, undefined, 'FAST');
+
+    // RIGHT EVENT DETAILS
+    const stubY = ticketY + 70;
+    pdf.setDrawColor(...LIGHT_GRAY);
+    pdf.line(rightX + 6, stubY, ticketX + ticketW - 6, stubY);
+
+    pdf.setFontSize(8);
+    pdf.setTextColor(...RED);
+    pdf.setFont('helvetica', 'bold');
+    const rightTitle = pdf.splitTextToSize(eventTitle.toUpperCase(), rightW - 14);
+    pdf.text(rightTitle, rightX + 8, stubY + 10);
+
+    pdf.setFontSize(6);
+    pdf.setTextColor(...GRAY);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text('DATE', rightX + 8, stubY + 24);
+    pdf.setFontSize(7);
+    pdf.setTextColor(...BLACK);
+    pdf.text(shortDate, rightX + 20, stubY + 24);
+
+    pdf.setFontSize(6);
+    pdf.setTextColor(...GRAY);
+    pdf.text('TIME', rightX + 8, stubY + 32);
+    pdf.setFontSize(7);
+    pdf.setTextColor(...BLACK);
+    pdf.text(eventTime, rightX + 20, stubY + 32);
+
+    pdf.setFontSize(6);
+    pdf.setTextColor(...GRAY);
+    pdf.text('VENUE', rightX + 8, stubY + 40);
+    pdf.setFontSize(6);
+    pdf.setTextColor(...BLACK);
+    const shortVenue = pdf.splitTextToSize(venue, rightW - 30);
+    pdf.text(shortVenue, rightX + 22, stubY + 40);
+
+    // BARCODE
+    const barcodeCanvas = document.createElement('canvas');
+    JsBarcode(barcodeCanvas, bookingId, {
+      format: 'CODE128',
+      width: 1.8,
+      height: 50,
+      displayValue: false,
+      margin: 0,
+    });
+    const barcodeData = barcodeCanvas.toDataURL('image/png');
+    const barcodeW = rightW - 16;
+    const barcodeH = 14;
+    pdf.addImage(barcodeData, 'PNG', rightX + 8, ticketY + 130, barcodeW, barcodeH, undefined, 'FAST');
+
+    pdf.setFontSize(7);
+    pdf.setTextColor(...BLACK);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(bookingId, rightX + rightW / 2, ticketY + 148, { align: 'center' });
+
+    // TICKET EDGE PERFORATIONS
+    pdf.setFillColor(...WHITE);
+    for (let y = ticketY + 6; y < ticketY + ticketH - 4; y += 8) {
+      pdf.circle(ticketX, y, 1.5, 'F');
+      pdf.circle(ticketX + ticketW, y, 1.5, 'F');
+    }
+
+    pdf.setFillColor(245, 245, 245);
+    pdf.circle(rightX, ticketY, 2.5, 'F');
+    pdf.circle(rightX, ticketY + ticketH, 2.5, 'F');
+
+    pdf.setDrawColor(190, 190, 190);
+    pdf.setLineWidth(0.35);
+    pdf.roundedRect(ticketX, ticketY, ticketW, ticketH, 5, 5, 'S');
+
+    pdf.save(`ticket-${bookingId}.pdf`);
+    toast.success('Ticket PDF downloaded successfully!');
+
+  } catch (error) {
+    console.error('PDF generation error:', error);
+    toast.error('Failed to generate ticket PDF');
+  } finally {
+    setDownloadingId(null);
+  }
+};
 
   // Helper to format date and time
   const formatDate = (dateString) => {
@@ -74,12 +423,34 @@ export default function MyBookings() {
     });
   };
 
+  const formatDateShort = (dateString) => {
+    if (!dateString) return 'TBD';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+
+  const formatDateWithDay = (dateString) => {
+    if (!dateString) return 'TBD';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      weekday: 'long',
+    });
+  };
+
   const formatTime = (dateString) => {
     if (!dateString) return 'TBD';
     const date = new Date(dateString);
     return date.toLocaleTimeString('en-US', {
       hour: '2-digit',
       minute: '2-digit',
+      hour12: true,
     });
   };
 
@@ -94,6 +465,19 @@ export default function MyBookings() {
     };
     const defaultStatus = { icon: FaClockIcon, color: 'text-gray-400', bg: 'bg-gray-400/10', label: status };
     return statusMap[status] || defaultStatus;
+  };
+
+  // Filter bookings based on event date
+  const getFilteredBookings = () => {
+    const now = new Date();
+    return bookings.filter((booking) => {
+      const eventDate = booking.event?.date ? new Date(booking.event.date) : null;
+      if (filter === 'all') return true;
+      if (filter === 'upcoming') return eventDate && eventDate >= now && booking.status !== 'cancelled';
+      if (filter === 'past') return eventDate && eventDate < now && booking.status !== 'cancelled';
+      if (filter === 'cancelled') return booking.status === 'cancelled';
+      return true;
+    });
   };
 
   // If not logged in, show prompt
@@ -231,6 +615,7 @@ export default function MyBookings() {
             const statusColor = getStatusBadge(booking.status).color;
             const statusBg = getStatusBadge(booking.status).bg;
             const statusLabel = getStatusBadge(booking.status).label;
+            const isDownloading = downloadingId === booking.id;
 
             return (
               <motion.div
@@ -302,9 +687,22 @@ export default function MyBookings() {
                     <div className="flex flex-row md:flex-col gap-2 flex-shrink-0">
                       {booking.status === 'paid' && (
                         <>
-                          <button className="flex items-center gap-2 px-4 py-2 text-sm text-primary border border-primary/30 hover:bg-primary/10 transition-all duration-300">
-                            <FaDownload />
-                            Ticket
+                          <button
+                            onClick={() => downloadTicketPDF(booking)}
+                            disabled={isDownloading}
+                            className="flex items-center gap-2 px-4 py-2 text-sm text-primary border border-primary/30 hover:bg-primary/10 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {isDownloading ? (
+                              <>
+                                <FaSpinner className="animate-spin" />
+                                Downloading...
+                              </>
+                            ) : (
+                              <>
+                                <FaFilePdf />
+                                Download PDF
+                              </>
+                            )}
                           </button>
                           <button className="flex items-center gap-2 px-4 py-2 text-sm text-gray-400 border border-white/10 hover:border-primary/30 transition-all duration-300">
                             <FaPrint />

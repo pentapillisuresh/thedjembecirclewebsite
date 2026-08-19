@@ -150,7 +150,7 @@ const formatTime = (dateString) => {
           viewport={{ once: true }}
           className="grid grid-cols-1 lg:grid-cols-2 gap-0 border border-white/10 bg-white/5 backdrop-blur-sm overflow-hidden hover:border-primary/30 transition-all duration-500"
         >
-          {/* Left side - Image */}
+         
          {/* Left side - Full Image */}
 <div className="relative h-full min-h-[350px] overflow-hidden bg-black flex items-center justify-center">
   {event.bannerImage ? (
@@ -221,6 +221,7 @@ const formatTime = (dateString) => {
               {event.description || 'Join us for an unforgettable drumming experience.'}
             </p>
             
+            {/* Price Section with Cover Charges */}
             <div className="mt-4">
               <div>
                 <p className="text-xs text-gray-500 uppercase tracking-wider">Price</p>
@@ -228,6 +229,11 @@ const formatTime = (dateString) => {
                   {event.ticketClasses ? getTicketPrice(event.ticketClasses) : 'TBD'}
                 </p>
                 <p className="text-xs text-gray-400">per person</p>
+                {/* Added cover charges included line */}
+                <p className="text-xs text-green-400 mt-1 flex items-center gap-1">
+                  <span className="inline-block w-1.5 h-1.5 bg-green-400 rounded-full"></span>
+                  Cover charges included
+                </p>
               </div>
             </div>
             

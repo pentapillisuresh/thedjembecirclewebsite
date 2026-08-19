@@ -312,9 +312,9 @@ export default function OrderDetails() {
                         </>
                       ) : (
                         <>
-                          <FaTrash className="mr-2" />
+                          {/* <FaTrash className="mr-2" />
                           Cancel & Refund
-                          <FaArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />
+                          <FaArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" /> */}
                         </>
                       )}
                     </button>

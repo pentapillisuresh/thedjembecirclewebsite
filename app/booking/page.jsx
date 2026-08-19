@@ -34,7 +34,7 @@ export default function Booking() {
   // Redirect if not logged in
   useEffect(() => {
     if (!user) {
-      router.push('/login');
+      router.push('/register?redirect=booking');
     }
   }, [user, router]);
 

@@ -61,7 +61,7 @@ export default function Register() {
         localStorage.setItem('isLogin', 'true');
   
         toast.success(data.message || 'Registration successful!');
-        router.push('/');
+       router.push('/booking');
       } else {
         throw new Error(data.message || 'Unexpected response');
       }
@@ -92,7 +92,7 @@ export default function Register() {
           <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-primary/30">
             <FaShieldAlt className="text-4xl text-primary" />
           </div>
-          <h2 className="text-3xl font-bold text-white">Create Account</h2>
+          <h2 className="text-3xl font-bold text-white">Register Account</h2>
           <p className="text-gray-400 mt-2">Join our drum circle community today</p>
         </div>
 
@@ -197,7 +197,7 @@ export default function Register() {
               'Creating Account...'
             ) : (
               <>
-                Create Account
+                Register Account
                 <FaArrowRight className="ml-2 group-hover:translate-x-1 transition-transform duration-300" />
               </>
             )}
