@@ -1,9 +1,9 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
-import { FaCalendar, FaClock, FaMapMarkerAlt, FaArrowRight } from 'react-icons/fa';
+import { FaCalendar, FaClock, FaMapMarkerAlt, FaArrowRight, FaInfoCircle, FaDrum, FaUsers } from 'react-icons/fa';
 import ApiService from "../../services/api";
 
 // Helper function to get full media URL
@@ -24,14 +24,13 @@ export default function UpcomingEvent() {
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showFullDescription, setShowFullDescription] = useState(false);
 
   useEffect(() => {
     const fetchUpcomingEvent = async () => {
       try {
         const data = await ApiService.getUpcomingEvents();
-        // ApiService returns { success: true, data: [...] }
         if (data.success && data.data && data.data.length > 0) {
-          // Process the event data to add full image URL
           const eventData = data.data[0];
           if (eventData.bannerImage) {
             eventData.bannerImage = getMediaUrl(eventData.bannerImage);
@@ -51,34 +50,28 @@ export default function UpcomingEvent() {
     fetchUpcomingEvent();
   }, []);
 
-  // Helper to format date and time
-const formatDate = (dateString) => {
-  if (!dateString) return '';
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-IN', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      timeZone: 'Asia/Kolkata',
+    });
+  };
 
-  const date = new Date(dateString);
+  const formatTime = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+      timeZone: 'Asia/Kolkata',
+    });
+  };
 
-  return date.toLocaleDateString('en-IN', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    timeZone: 'Asia/Kolkata',
-  });
-};
-
-const formatTime = (dateString) => {
-  if (!dateString) return '';
-
-  const date = new Date(dateString);
-
-  return date.toLocaleTimeString('en-IN', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-    timeZone: 'Asia/Kolkata',
-  });
-};
-
-  // Get the cheapest ticket price (or show range)
   const getTicketPrice = (ticketClasses) => {
     if (!ticketClasses || ticketClasses.length === 0) return 'TBD';
     const prices = ticketClasses.map(cls => cls.price);
@@ -86,6 +79,12 @@ const formatTime = (dateString) => {
     const max = Math.max(...prices);
     if (min === max) return `₹${min}`;
     return `₹${min} - ₹${max}`;
+  };
+
+  const getTruncatedDescription = (text, maxLength = 120) => {
+    if (!text) return 'Join us for an unforgettable drumming experience.';
+    if (text.length <= maxLength) return text;
+    return text.slice(0, maxLength) + '...';
   };
 
   if (loading) {
@@ -116,12 +115,10 @@ const formatTime = (dateString) => {
 
   return (
     <section className="py-20 px-4 bg-black relative overflow-hidden">
-      {/* Background decorative elements */}
       <div className="absolute top-0 left-0 w-72 h-72 bg-primary/5 blur-3xl"></div>
       <div className="absolute bottom-0 right-0 w-96 h-96 bg-purple-500/5 blur-3xl"></div>
       
       <div className="max-w-7xl mx-auto relative">
-        {/* Section Title */}
         <motion.div 
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -135,7 +132,7 @@ const formatTime = (dateString) => {
           >
             <span className="text-primary text-sm font-semibold">✦ Upcoming Event</span>
           </Link>
-          <h2 className="text-4xl md:text-5xl font-extrabold text-white">
+          <h2 className="text-3xl md:text-4xl font-extrabold text-white">
             Featured <span className="text-primary">Event</span>
           </h2>
           <p className="mt-4 text-lg text-gray-300 max-w-2xl mx-auto">
@@ -150,47 +147,38 @@ const formatTime = (dateString) => {
           viewport={{ once: true }}
           className="grid grid-cols-1 lg:grid-cols-2 gap-0 border border-white/10 bg-white/5 backdrop-blur-sm overflow-hidden hover:border-primary/30 transition-all duration-500"
         >
-         
-         {/* Left side - Full Image */}
-<div className="relative h-full min-h-[350px] overflow-hidden bg-black flex items-center justify-center">
-  {event.bannerImage ? (
-    <Image
-      src={event.bannerImage}
-      alt={event.title || 'Upcoming Event'}
-      fill
-      className="object-contain"
-      priority
-      unoptimized
-      onError={(e) => {
-        console.error('Failed to load image:', event.bannerImage);
-        e.currentTarget.style.display = 'none';
-      }}
-    />
-  ) : (
-    <div className="w-full h-full flex items-center justify-center bg-black">
-      <span className="text-6xl">🥁</span>
-    </div>
-  )}
+          <div className="relative h-full min-h-[350px] overflow-hidden bg-black flex items-center justify-center">
+            {event.bannerImage ? (
+              <Image
+                src={event.bannerImage}
+                alt={event.title || 'Upcoming Event'}
+                fill
+                className="object-contain"
+                priority
+                unoptimized
+                onError={(e) => {
+                  console.error('Failed to load image:', event.bannerImage);
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-black">
+                <span className="text-6xl">🥁</span>
+              </div>
+            )}
+            <div className="absolute inset-0 bg-black/10 pointer-events-none" />
+            <div className="absolute bottom-6 left-6 right-6 lg:hidden">
+              <div className="bg-black/80 backdrop-blur-sm p-4 border-l-4 border-primary">
+                <h3 className="text-white font-bold text-xl">{event.title}</h3>
+              </div>
+            </div>
+          </div>
 
-  {/* Optional dark overlay */}
-  <div className="absolute inset-0 bg-black/10 pointer-events-none" />
-
-  <div className="absolute bottom-6 left-6 right-6 lg:hidden">
-    <div className="bg-black/80 backdrop-blur-sm p-4 border-l-4 border-primary">
-      <h3 className="text-white font-bold text-xl">
-        {event.title}
-      </h3>
-    </div>
-  </div>
-</div>
-
-          {/* Right side - Content */}
           <div className="p-6 md:p-10 flex flex-col justify-center">
-            <h3 className="text-2xl md:text-3xl font-bold text-primary mb-4">
+            <h3 className="text-xl md:text-2xl font-bold text-primary mb-4">
               {event.title}
             </h3>
             
-            {/* Event Details */}
             <div className="space-y-3 mt-2">
               <div className="flex items-center space-x-4 text-gray-300 bg-white/5 p-3 border-l-4 border-primary/30 hover:border-primary transition-all duration-300">
                 <FaCalendar className="text-primary text-xl" />
@@ -217,11 +205,68 @@ const formatTime = (dateString) => {
               </div>
             </div>
             
-            <p className="text-gray-400 mt-4 text-base leading-relaxed line-clamp-2">
-              {event.description || 'Join us for an unforgettable drumming experience.'}
-            </p>
+            <div className="mt-4">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={showFullDescription ? 'full' : 'truncated'}
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <p className="text-gray-400 text-base leading-relaxed">
+                    {showFullDescription 
+                      ? (event.description || 'Join us for an unforgettable drumming experience.')
+                      : getTruncatedDescription(event.description, 120)
+                    }
+                  </p>
+                </motion.div>
+              </AnimatePresence>
+              
+              {event.description && event.description.length > 120 && (
+                <button
+                  onClick={() => setShowFullDescription(!showFullDescription)}
+                  className="mt-2 text-primary hover:text-primary/80 font-semibold text-sm transition-colors duration-300 flex items-center gap-1 group"
+                >
+                  {showFullDescription ? (
+                    <>
+                      <span>Read Less</span>
+                      <FaArrowRight className="rotate-90 group-hover:rotate-[-90deg] transition-transform duration-300" />
+                    </>
+                  ) : (
+                    <>
+                      <span>Read More</span>
+                      <FaArrowRight className="group-hover:translate-x-1 transition-transform duration-300" />
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+
+            {/* Static Content - Exact text as requested */}
+            <div className="mt-4 space-y-3 text-sm text-gray-300">
+              <div className="flex items-start gap-3 bg-white/5 p-3 rounded border-l-4 border-green-500">
+                <FaInfoCircle className="text-green-400 text-lg mt-0.5 flex-shrink-0" />
+                <p className="text-sm leading-relaxed">
+                  Your ticket includes a <span className="text-green-400 font-semibold">₹300 cover charge</span>, fully redeemable on Food & Beverages (F&B).
+                </p>
+              </div>
+
+              <div className="flex items-start gap-3 bg-white/5 p-3 rounded border-l-4 border-primary">
+                <FaDrum className="text-primary text-lg mt-0.5 flex-shrink-0" />
+                <p className="text-sm leading-relaxed">
+                  Drums will be provided at the venue, so all you need to do is show up and join the circle!
+                </p>
+              </div>
+
+              <div className="flex items-start gap-3 bg-white/5 p-3 rounded border-l-4 border-purple-500">
+                <FaUsers className="text-purple-400 text-lg mt-0.5 flex-shrink-0" />
+                <p className="text-sm leading-relaxed">
+                  Come experience the collective power of rhythm, connect with strangers, let loose, and become part of The Djembe Circle. No experience. No auditions. Just rhythm!
+                </p>
+              </div>
+            </div>
             
-            {/* Price Section with Cover Charges */}
             <div className="mt-4">
               <div>
                 <p className="text-xs text-gray-500 uppercase tracking-wider">Price</p>
@@ -229,11 +274,6 @@ const formatTime = (dateString) => {
                   {event.ticketClasses ? getTicketPrice(event.ticketClasses) : 'TBD'}
                 </p>
                 <p className="text-xs text-gray-400">per person</p>
-                {/* Added cover charges included line */}
-                <p className="text-xs text-green-400 mt-1 flex items-center gap-1">
-                  <span className="inline-block w-1.5 h-1.5 bg-green-400 rounded-full"></span>
-                  Cover charges included
-                </p>
               </div>
             </div>
             
@@ -253,7 +293,6 @@ const formatTime = (dateString) => {
               </Link>
             </div>
             
-            {/* Social proof */}
             <div className="mt-4 flex items-center space-x-4">
               <div className="flex -space-x-2">
                 {[1, 2, 3].map((i) => (
