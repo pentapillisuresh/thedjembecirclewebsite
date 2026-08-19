@@ -22,6 +22,7 @@ const getMediaUrl = (path) => {
 
 export default function Gallery() {
   const [galleryItems, setGalleryItems] = useState([]);
+  const [displayItems, setDisplayItems] = useState([]);
   const [events, setEvents] = useState([]);
   const [selectedEventId, setSelectedEventId] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -81,6 +82,10 @@ export default function Gallery() {
         
         setGalleryItems(mappedItems);
         
+        // Only show first 4 items (mix of photos and videos)
+        const firstFour = mappedItems.slice(0, 4);
+        setDisplayItems(firstFour);
+        
         const images = mappedItems.filter(i => i.type === 'image').length;
         const videos = mappedItems.filter(i => i.type === 'video').length;
         setStats({
@@ -91,6 +96,7 @@ export default function Gallery() {
       } else {
         setError('No gallery items found');
         setGalleryItems([]);
+        setDisplayItems([]);
       }
     } catch (err) {
       console.error('Gallery fetch error:', err);
@@ -148,7 +154,7 @@ export default function Gallery() {
             </div>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mt-6">
-            {[...Array(8)].map((_, i) => (
+            {[...Array(4)].map((_, i) => (
               <div key={i} className="aspect-square bg-gray-800 animate-pulse"></div>
             ))}
           </div>
@@ -158,7 +164,7 @@ export default function Gallery() {
   }
 
   // Error or empty state
-  if (error && galleryItems.length === 0) {
+  if (error && displayItems.length === 0) {
     return (
       <section className="py-12 px-4 bg-black relative overflow-hidden min-h-screen">
         <div className="max-w-6xl mx-auto">
@@ -270,10 +276,10 @@ export default function Gallery() {
           </motion.div>
         )}
 
-        {/* Gallery Grid - Smaller items */}
-        {galleryItems.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mt-6">
-            {galleryItems.map((item, index) => (
+        {/* Gallery Grid - Only 4 items */}
+        {displayItems.length > 0 ? (
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-6">
+            {displayItems.map((item, index) => (
               <motion.div
                 key={item.id || index}
                 initial={{ opacity: 0, y: 20 }}
@@ -394,7 +400,7 @@ export default function Gallery() {
                         }
                       }}
                       unoptimized={true}
-                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 50vw, 25vw"
                     />
                   )}
                   
