@@ -1,13 +1,11 @@
 'use client';
 import Link from 'next/link';
-import { useAuth } from '@/lib/auth';
 import { useState, useEffect } from 'react';
-import { FaBars, FaTimes } from 'react-icons/fa';
+import { FaBars, FaTimes, FaTicketAlt } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 
 export default function Header() {
-  const { user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -27,7 +25,7 @@ export default function Header() {
     { name: 'About', href: '/about' },
     { name: 'Events', href: '/events' },
     { name: 'Gallery', href: '/gallery' },
-    { name: 'Blog', href: '/blog' },  // Added Blog
+    { name: 'Blog', href: '/blog' },
     { name: 'Contact', href: '/contact' },
   ];
 
@@ -44,9 +42,6 @@ export default function Header() {
         animate={{
           width: scrolled ? '100%' : '92%',
           borderRadius: scrolled ? 0 : 9999,
-          y: scrolled ? 0 : 0,
-          marginLeft: scrolled ? 0 : 'auto',
-          marginRight: scrolled ? 0 : 'auto',
         }}
         transition={{
           layout: {
@@ -65,12 +60,8 @@ export default function Header() {
         <div className={`${scrolled ? 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8' : 'px-4'}`}>
           <motion.div 
             className="flex justify-between items-center h-16 md:h-20"
-            animate={{
-              gap: scrolled ? '0px' : '8px',
-            }}
-            transition={{ duration: 0.5 }}
           >
-            {/* Logo with Image */}
+            {/* Logo with Image - FIXED: Added width/height auto for aspect ratio */}
             <Link href="/" className="flex items-center space-x-3 group flex-shrink-0">
               <motion.div
                 whileHover={{ scale: 1.08, rotate: 5 }}
@@ -91,6 +82,7 @@ export default function Header() {
                     width={50}
                     height={50}
                     className="object-contain"
+                    style={{ width: 'auto', height: 'auto' }} // FIXED: Added for aspect ratio
                     priority
                   />
                 </motion.div>
@@ -115,7 +107,6 @@ export default function Header() {
                 <motion.span
                   animate={{
                     fontSize: scrolled ? '1rem' : '1.4rem',
-                    gap: scrolled ? '0px' : '4px',
                   }}
                   transition={{ duration: 0.6, type: 'spring', stiffness: 200 }}
                   className="font-extrabold tracking-tight"
@@ -158,47 +149,21 @@ export default function Header() {
                 </motion.div>
               ))}
               
-              {user ? (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.5, delay: 0.3 }}
-                  className="flex items-center space-x-2 ml-4"
+              {/* Book Event Button */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.5, delay: 0.3 }}
+                className="ml-4"
+              >
+                <Link
+                  href="/booking" // FIXED: Changed from /book-event to /booking based on your folder structure
+                  className="flex items-center gap-2 px-6 py-2 rounded-full bg-primary text-white hover:bg-primary/80 transition-all duration-300 font-medium text-sm hover:scale-105 transform shadow-lg shadow-primary/20"
                 >
-                  <Link
-                    href="/dashboard"
-                    className="px-5 py-2 rounded-full border border-primary/40 text-primary hover:text-white hover:border-primary hover:bg-primary/10 transition-all duration-300 font-medium text-sm backdrop-blur-sm"
-                  >
-                    Dashboard
-                  </Link>
-                  <button
-                    onClick={logout}
-                    className="px-5 py-2 rounded-full border border-white/10 text-gray-300 hover:text-white hover:border-white/30 hover:bg-white/5 transition-all duration-300 font-medium text-sm backdrop-blur-sm"
-                  >
-                    Logout
-                  </button>
-                </motion.div>
-              ) : (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.5, delay: 0.3 }}
-                  className="flex items-center space-x-2 ml-4"
-                >
-                  <Link
-                    href="/login"
-                    className="px-5 py-2 rounded-full border border-white/10 text-gray-300 hover:text-white hover:border-white/30 hover:bg-white/5 transition-all duration-300 font-medium text-sm backdrop-blur-sm"
-                  >
-                    Login
-                  </Link>
-                  <Link
-                    href="/register"
-                    className="px-6 py-2 rounded-full bg-primary text-white hover:bg-primary/80 transition-all duration-300 font-medium text-sm hover:scale-105 transform shadow-lg shadow-primary/20"
-                  >
-                    Register
-                  </Link>
-                </motion.div>
-              )}
+                  <FaTicketAlt className="text-sm" />
+                  Book Event
+                </Link>
+              </motion.div>
             </nav>
 
             {/* Mobile menu button */}
@@ -251,61 +216,21 @@ export default function Header() {
                   </motion.div>
                 ))}
                 
-                {user ? (
-                  <>
-                    <motion.div
-                      initial={{ opacity: 0, x: -30 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.3, duration: 0.3 }}
-                    >
-                      <Link
-                        href="/dashboard"
-                        className="block px-4 py-3 rounded-xl text-primary hover:text-white hover:bg-primary/10 transition-all duration-300 font-medium"
-                        onClick={() => setMenuOpen(false)}
-                      >
-                        Dashboard
-                      </Link>
-                    </motion.div>
-                    <motion.button
-                      initial={{ opacity: 0, x: -30 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.35, duration: 0.3 }}
-                      onClick={() => { logout(); setMenuOpen(false); }}
-                      className="w-full px-4 py-3 rounded-xl text-gray-300 hover:text-white hover:bg-white/5 transition-all duration-300 font-medium text-left"
-                    >
-                      Logout
-                    </motion.button>
-                  </>
-                ) : (
-                  <>
-                    <motion.div
-                      initial={{ opacity: 0, x: -30 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.3, duration: 0.3 }}
-                    >
-                      <Link
-                        href="/login"
-                        className="block px-4 py-3 rounded-xl text-gray-300 hover:text-white hover:bg-white/5 transition-all duration-300 font-medium"
-                        onClick={() => setMenuOpen(false)}
-                      >
-                        Login
-                      </Link>
-                    </motion.div>
-                    <motion.div
-                      initial={{ opacity: 0, x: -30 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.35, duration: 0.3 }}
-                    >
-                      <Link
-                        href="/register"
-                        className="block px-4 py-3 rounded-xl bg-primary text-white font-medium hover:bg-primary/80 transition-all duration-300 text-center"
-                        onClick={() => setMenuOpen(false)}
-                      >
-                        Register
-                      </Link>
-                    </motion.div>
-                  </>
-                )}
+                {/* Mobile Book Event Button */}
+                <motion.div
+                  initial={{ opacity: 0, x: -30 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.35, duration: 0.3 }}
+                >
+                  <Link
+                    href="/booking" // FIXED: Changed from /book-event to /booking
+                    className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-primary text-white font-medium hover:bg-primary/80 transition-all duration-300"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    <FaTicketAlt />
+                    Book Event
+                  </Link>
+                </motion.div>
               </div>
             </motion.div>
           )}

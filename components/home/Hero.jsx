@@ -99,14 +99,7 @@ export default function Hero() {
               </span>
             </Link>
             <button
-              onClick={() => {
-                const isLogin = localStorage.getItem("isLogin");
-                if (isLogin) {
-                  router.push('/booking');
-                } else {
-                  router.push('/register');
-                }
-              }}
+              onClick={() => router.push('/booking')}
               className="group relative px-5 py-2.5 sm:px-8 sm:py-4 rounded-full bg-white/10 backdrop-blur-sm border border-white/30 text-white font-semibold text-xs sm:text-sm transition-all duration-300 hover:bg-white/20 hover:scale-105 w-full sm:w-auto text-center"
             >
               <span className="flex items-center justify-center gap-2">
