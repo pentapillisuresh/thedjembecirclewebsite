@@ -8,8 +8,8 @@ import Link from 'next/link';
 import { FaArrowRight, FaTicketAlt, FaSearch, FaCalendarAlt, FaHeadset, FaSpinner } from 'react-icons/fa';
 import ApiService from "../../services/api"
 
-// const API_BASE = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001/api';
-const API_BASE = process.env.NEXT_PUBLIC_APP_URL || 'https://service.thedjembecircle.com/api';
+const API_BASE = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001/api';
+// const API_BASE = process.env.NEXT_PUBLIC_APP_URL || 'https://service.thedjembecircle.com/api';
 
 const PAGE_SIZE = 6;
 

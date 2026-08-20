@@ -8,8 +8,8 @@ import toast from 'react-hot-toast';
 import ApiService from "../../services/api"
 import { useAuth } from '../../lib/auth';
 
-// const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://service.thedjembecircle.com/api';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+// const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://service.thedjembecircle.com/api';
 
 export default function Register() {
   const router = useRouter();
