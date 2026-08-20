@@ -50,7 +50,7 @@ const formatTime = (dateString) => {
 };
 
 export default function EventDetail() {
-  const { id } = useParams();
+  const { slug } = useParams();
   const router = useRouter();
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -59,10 +59,10 @@ export default function EventDetail() {
 
   useEffect(() => {
     const fetchEvent = async () => {
-      if (!id) return;
+      if (!slug) return;
       try {
         setLoading(true);
-        const data = await ApiService.getEventById(id);
+        const data = await ApiService.getEventBySlug(slug);
         console.log('Event data:', data);
         
         if (data.success && data.data) {
@@ -94,7 +94,7 @@ export default function EventDetail() {
       }
     };
     fetchEvent();
-  }, [id]);
+  }, [slug]);
 
   // Get price range from ticket classes
   const getPriceRange = (ticketClasses) => {

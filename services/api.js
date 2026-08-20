@@ -58,7 +58,7 @@ class ApiService {
     try {
       const response = await fetch(url, fetchOptions);
       const data = await response.json();
-      console.log("response:::", response)
+
       if (!response.ok) {
         if (response.status === 401) {
           this.setToken(null);
@@ -156,6 +156,11 @@ class ApiService {
 
   getEventById(id) {
     const endpoint = API_ENDPOINTS.EVENTS.GET_BY_ID.replace(':id', id);
+    return this.request(endpoint, { includeAuth: false });
+  }
+
+  getEventBySlug(slug) {
+    const endpoint = API_ENDPOINTS.EVENTS.GET_BY_SLUG.replace(':slug', slug);
     return this.request(endpoint, { includeAuth: false });
   }
 

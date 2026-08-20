@@ -24,6 +24,7 @@ export const API_ENDPOINTS = {
     GET_ALL: '/events',
     GET_UPCOMING: '/events/upcoming',
     GET_BY_ID: '/events/:id',
+    GET_BY_SLUG: '/events/getByEvent/:slug',
   },
 
   // Orders (booking)

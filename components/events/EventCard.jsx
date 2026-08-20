@@ -44,6 +44,7 @@ const formatTime = (dateString) => {
 };
 
 export default function EventCard({ event }) {
+  console.log("event::",event)
   // Get image URL
   const imageUrl = event.bannerImage ? getMediaUrl(event.bannerImage) : 
                    event.image ? getMediaUrl(event.image) : 
@@ -173,7 +174,7 @@ export default function EventCard({ event }) {
           </div>
           <div className="flex flex-col sm:flex-row gap-2">
             <Link
-              href={`/event/${event.id}`}
+              href={`/event/${event.slug}`}
               className="px-4 py-2 border border-white/20 text-white text-sm font-semibold hover:bg-white/10 hover:border-primary/50 transition-all duration-300 rounded-full flex items-center gap-2 group/btn"
             >
               <span>Details</span>

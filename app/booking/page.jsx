@@ -2,27 +2,11 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import {
-  FaTicketAlt,
-  FaUser,
-  FaPhone,
-  FaEnvelope,
-  FaCalendar,
-  FaClock,
-  FaMapMarkerAlt,
-  FaArrowRight,
-  FaWallet,
-  FaPlus,
-  FaMinus,
-  FaSpinner,
-  FaCheckCircle,
-  FaTag,
-  FaTimes,
-  FaExclamationCircle,
-} from 'react-icons/fa';
+import { FaCalendar, FaClock, FaMapMarkerAlt, FaArrowRight, FaPlus, FaMinus, FaSpinner, FaCheckCircle, FaTag, FaTimes, FaExclamationCircle } from 'react-icons/fa';
 import ApiService from '@/services/api';
 import toast from 'react-hot-toast';
 import { loadRazorpay } from '../../components/layout/loadRazorPay';
+import { format } from 'path';
 
 export default function Booking() {
   const router = useRouter();
@@ -107,12 +91,27 @@ export default function Booking() {
       return;
     }
 
+    if (!form.fullName) {
+      setCouponError('Please enter an User FullName');
+      return;
+    }
+
+    if (!form.mobile) {
+      setCouponError('Please enter an User Mobile');
+      return;
+    }
+
+    if (!form.email) {
+      setCouponError('Please enter an User Email');
+      return;
+    }
+
     setCouponLoading(true);
     setCouponError('');
     setCouponValidationDetails(null);
 
     try {
-      const response = await ApiService.validateCoupon({ code });
+      const response = await ApiService.validateCoupon({ code, mobile: form.mobile });
 
       if (response.success && response.data) {
         setCoupon(response.data);
@@ -171,136 +170,343 @@ export default function Booking() {
     }
     return 0;
   };
-
+  
+  const registerUserData = async () => {
+    try {
+      const data = await ApiService.register({
+        phone: form.mobile,
+        name: form.fullName,
+        email: form.email,
+      });
+  
+      console.log("Register response:", data);
+  
+      if (!data.success || !data.data) {
+        throw new Error(data.message || "Registration failed");
+      }
+  
+      const { token, user } = data.data;
+  
+      if (!token) {
+        throw new Error("Authentication token not received");
+      }
+  
+      // Store token
+      ApiService.setToken(token);
+  
+      // Store user information
+      localStorage.setItem("user", JSON.stringify(user));
+      localStorage.setItem("isLogin", "true");
+  
+      // IMPORTANT:
+      // Return data so handlePayment knows registration/login succeeded
+      return {
+        success: true,
+        user,
+        token,
+      };
+  
+    } catch (error) {
+      console.error("Signup/Login error:", error);
+  
+      toast.error(
+        error?.message || "Failed to register. Please try again."
+      );
+  
+      return {
+        success: false,
+        error,
+      };
+    }
+  }; 
+  
   // Handle payment
   const handlePayment = async (e) => {
     e.preventDefault();
-
+  
+    // -----------------------------
+    // Validate event
+    // -----------------------------
     if (!selectedEvent) {
-      toast.error('Please select an event');
+      toast.error("Please select an event");
       return;
     }
-
+  
+    // -----------------------------
+    // Validate ticket class
+    // -----------------------------
     if (!selectedTicketClass) {
-      toast.error('Please select a ticket class');
+      toast.error("Please select a ticket class");
       return;
     }
-
+  
+    // -----------------------------
+    // Validate customer details
+    // -----------------------------
     if (!form.fullName || !form.mobile || !form.email) {
-      toast.error('Please fill in all required fields');
+      toast.error("Please fill in all required fields");
       return;
     }
-
+  
     setProcessingPayment(true);
-
+  
     try {
+      // ==========================================
+      // STEP 1: Register / Login existing user
+      // ==========================================
+      const userResult = await registerUserData();
+  
+      if (!userResult || !userResult.success) {
+        setProcessingPayment(false);
+        return;
+      }
+  
+      console.log("User authenticated:", userResult.user);
+  
+      // ==========================================
+      // STEP 2: Create Order
+      // ==========================================
       const orderPayload = {
         eventId: selectedEvent.id,
+  
         items: [
           {
             ticketClassId: selectedTicketClass.id,
-            quantity: form.tickets,
+            quantity: Number(form.tickets),
           },
         ],
+  
         customerDetails: {
           fullName: form.fullName,
           mobile: form.mobile,
           email: form.email,
         },
+  
         couponCode: coupon ? coupon.code : null,
       };
-
+  
+      console.log("Creating order:", orderPayload);
+  
       const orderResponse = await ApiService.createOrder(orderPayload);
-
-      if (!orderResponse.success) {
-        throw new Error(orderResponse.message || 'Order creation failed');
+  
+      if (!orderResponse.success || !orderResponse.data) {
+        throw new Error(
+          orderResponse.message || "Order creation failed"
+        );
       }
-
+  
       const orderData = orderResponse.data;
-
+  
+      console.log("Order created:", orderData);
+  
+      // ==========================================
+      // STEP 3: Create Razorpay Order
+      // ==========================================
       const razorpayPayload = {
         orderId: orderData.id,
         couponCode: coupon ? coupon.code : null,
       };
-      const razorpayResponse = await ApiService.createRazorpayOrder(razorpayPayload);
-
-      if (!razorpayResponse.success) {
-        throw new Error(razorpayResponse.message || 'Razorpay order creation failed');
+  
+      const razorpayResponse =
+        await ApiService.createRazorpayOrder(razorpayPayload);
+  
+      if (!razorpayResponse.success || !razorpayResponse.data) {
+        throw new Error(
+          razorpayResponse.message ||
+            "Razorpay order creation failed"
+        );
       }
-
-      const { razorpayOrderId, amount, key } = razorpayResponse.data;
-
+  
+      const {
+        razorpayOrderId,
+        amount,
+        key,
+      } = razorpayResponse.data;
+  
+      if (!razorpayOrderId) {
+        throw new Error("Razorpay order ID not received");
+      }
+  
+      // ==========================================
+      // STEP 4: Razorpay Options
+      // ==========================================
       const options = {
-        key: key || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-        amount: amount * 100,
-        currency: 'INR',
-        name: 'THE DJEMBE CIRCLE',
-        description: `Booking: ${selectedEvent.title}${coupon ? ` (Coupon: ${coupon.code})` : ''}`,
+        key:
+          key ||
+          process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+  
+        amount: Number(amount) * 100,
+  
+        currency: "INR",
+  
+        name: "THE DJEMBE CIRCLE",
+  
+        description: `Booking: ${selectedEvent.title}${
+          coupon ? ` (Coupon: ${coupon.code})` : ""
+        }`,
+  
         order_id: razorpayOrderId,
+  
         handler: async function (response) {
           try {
+            console.log(
+              "Razorpay payment response:",
+              response
+            );
+  
+            // ==========================================
+            // STEP 5: Verify Payment
+            // ==========================================
             const verifyPayload = {
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
+              razorpay_order_id:
+                response.razorpay_order_id,
+  
+              razorpay_payment_id:
+                response.razorpay_payment_id,
+  
+              razorpay_signature:
+                response.razorpay_signature,
             };
-            const verifyResponse = await ApiService.verifyPayment(verifyPayload);
-
-            if (verifyResponse.success) {
-              toast.success('Payment successful! 🎉');
-              const params = new URLSearchParams({
-                orderId: orderData.id,
-                eventId: selectedEvent.id,
-                tickets: form.tickets,
-                payment_id: response.razorpay_payment_id,
-                payment_status: 'success',
-                couponCode: coupon ? coupon.code : '',
-                discountAmount: calculateDiscount().toString(),
-              });
-              router.push(`/success?${params.toString()}`);
-            } else {
-              throw new Error(verifyResponse.message || 'Payment verification failed');
+  
+            const verifyResponse =
+              await ApiService.verifyPayment(
+                verifyPayload
+              );
+  
+            if (!verifyResponse.success) {
+              throw new Error(
+                verifyResponse.message ||
+                  "Payment verification failed"
+              );
             }
+  
+            // ==========================================
+            // Payment successful
+            // ==========================================
+            toast.success("Payment successful! 🎉");
+  
+            const params = new URLSearchParams({
+              orderId: String(orderData.id),
+  
+              eventId: String(selectedEvent.id),
+  
+              tickets: String(form.tickets),
+  
+              payment_id:
+                response.razorpay_payment_id,
+  
+              payment_status: "success",
+  
+              couponCode: coupon
+                ? coupon.code
+                : "",
+  
+              discountAmount:
+                calculateDiscount().toString(),
+            });
+  
+            router.push(
+              `/success?${params.toString()}`
+            );
+  
           } catch (error) {
-            console.error('Verification error:', error);
-            toast.error(error.message || 'Payment verification failed');
-            router.push(`/payment-failed?orderId=${orderData.id}`);
+            console.error(
+              "Payment verification error:",
+              error
+            );
+  
+            toast.error(
+              error?.message ||
+                "Payment verification failed"
+            );
+  
+            router.push(
+              `/payment-failed?orderId=${orderData.id}`
+            );
+  
+          } finally {
+            setProcessingPayment(false);
           }
-          setProcessingPayment(false);
         },
+  
+        // ==========================================
+        // Razorpay modal dismissed
+        // ==========================================
         modal: {
           ondismiss: function () {
-            toast.error('Payment cancelled');
+            toast.error("Payment cancelled");
             setProcessingPayment(false);
           },
         },
+  
+        // ==========================================
+        // Customer information
+        // ==========================================
         prefill: {
           name: form.fullName,
           email: form.email,
           contact: form.mobile,
         },
+  
+        // ==========================================
+        // Razorpay theme
+        // ==========================================
         theme: {
-          color: '#FF6B35',
+          color: "#FF6B35",
         },
       };
-
+  
+      // ==========================================
+      // STEP 6: Load Razorpay
+      // ==========================================
       const loaded = await loadRazorpay();
-
+  
       if (!loaded) {
-        toast.error('Failed to load payment gateway');
-        setProcessingPayment(false);
-        return;
+        throw new Error(
+          "Failed to load payment gateway"
+        );
       }
-
-      const razorpay = new window.Razorpay(options);
+  
+      // ==========================================
+      // STEP 7: Open Razorpay
+      // ==========================================
+      const razorpay =
+        new window.Razorpay(options);
+  
+      razorpay.on(
+        "payment.failed",
+        function (response) {
+          console.error(
+            "Razorpay payment failed:",
+            response.error
+          );
+  
+          toast.error(
+            response.error?.description ||
+              "Payment failed"
+          );
+  
+          setProcessingPayment(false);
+        }
+      );
+  
       razorpay.open();
+  
     } catch (error) {
-      console.error('Payment flow error:', error);
-      toast.error(error.message || 'Failed to initiate payment');
+      console.error(
+        "Payment flow error:",
+        error
+      );
+  
+      toast.error(
+        error?.message ||
+          "Failed to initiate payment"
+      );
+  
       setProcessingPayment(false);
     }
   };
-
+  
   const updateTickets = (change) => {
     const newValue = form.tickets + change;
     if (newValue >= 1 && newValue <= 10) {
@@ -525,11 +731,10 @@ export default function Booking() {
                       setCouponValidationDetails(null);
                     }
                   }}
-                  className={`w-full bg-black/50 border ${
-                    couponError ? 'border-red-500/50' :
-                    coupon ? 'border-green-500/50' :
-                    'border-white/10'
-                  } pl-12 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary/50 transition-colors duration-300 uppercase rounded`}
+                  className={`w-full bg-black/50 border ${couponError ? 'border-red-500/50' :
+                      coupon ? 'border-green-500/50' :
+                        'border-white/10'
+                    } pl-12 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary/50 transition-colors duration-300 uppercase rounded`}
                   placeholder="ENTER COUPON CODE"
                   disabled={!!coupon}
                 />
