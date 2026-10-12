@@ -1,22 +1,39 @@
-'use client';
-import { motion } from 'framer-motion';
-import { FaPlay, FaArrowRight, FaImage, FaPause, FaVolumeUp, FaVolumeMute, FaCamera, FaVideo, FaCalendarAlt } from 'react-icons/fa';
-import Link from 'next/link';
-import { useState, useRef, useEffect } from 'react';
-import Image from 'next/image';
-import ApiService from "../../services/api";
 
-// Helper function to get full media URL
+'use client';
+
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  FaArrowRight,
+  FaCamera,
+  FaCalendarAlt,
+  FaChevronLeft,
+  FaChevronRight,
+  FaImage,
+  FaPlay,
+  FaTimes,
+  FaVideo,
+  FaVolumeMute,
+  FaVolumeUp,
+} from 'react-icons/fa';
+import Link from 'next/link';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import Image from 'next/image';
+import ApiService from '../../services/api';
+
 const getMediaUrl = (path) => {
   if (!path) return '';
-  if (path.startsWith('http://') || path.startsWith('https://')) {
-    return path;
-  }
+
+  if (/^https?:\/\//i.test(path)) return path;
+
   if (path.startsWith('/uploads/')) {
-    const baseUrl = process.env.NEXT_PUBLIC_MEDIA_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-    const cleanBaseUrl = baseUrl.replace('/api', '');
-    return `${cleanBaseUrl}${path}`;
+    const base =
+      process.env.NEXT_PUBLIC_MEDIA_URL ||
+      process.env.NEXT_PUBLIC_API_URL ||
+      'http://localhost:3001';
+
+    return `${base.replace(/\/api\/?$/, '').replace(/\/$/, '')}${path}`;
   }
+
   return path;
 };
 
@@ -26,473 +43,528 @@ export default function Gallery() {
   const [selectedEventId, setSelectedEventId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [hoveredIndex, setHoveredIndex] = useState(null);
-  const [playingVideo, setPlayingVideo] = useState(null);
+  const [activeIndex, setActiveIndex] = useState(null);
   const [isMuted, setIsMuted] = useState(true);
-  const videoRefs = useRef({});
-  const [stats, setStats] = useState({ total: 0, images: 0, videos: 0 });
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        
-        // Fetch events first
-        const eventsData = await ApiService.getEvents({ limit: 100 });
-        if (eventsData.success && eventsData.data) {
-          const eventList = eventsData.data.events || eventsData.data || [];
-          setEvents(eventList);
-        }
+  const viewerVideoRef = useRef(null);
 
-        // Fetch gallery items based on selection
-        await fetchGalleryItems(selectedEventId);
-      } catch (err) {
-        console.error('Fetch error:', err);
-        setError('Failed to load data');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
-
-  const fetchGalleryItems = async (eventId) => {
+  const fetchGalleryItems = useCallback(async (eventId) => {
     try {
       setLoading(true);
-      let data;
-      
-      if (eventId) {
-        data = await ApiService.getEventGallery(eventId);
+      setError(null);
+
+      const response = eventId
+        ? await ApiService.getEventGallery(eventId)
+        : await ApiService.getGallery({ eventId: 'all' });
+
+      if (response.success && Array.isArray(response.data)) {
+        const items = response.data
+          .filter((item) => item.isActive !== false)
+          .map((item) => ({
+            id: item.id,
+            type: item.mediaType,
+            title:
+              item.caption ||
+              (item.event
+                ? `Event: ${item.event.title}`
+                : 'A Moment to Remember'),
+            image: getMediaUrl(item.mediaUrl),
+            eventId: item.eventId,
+            event: item.event,
+          }))
+          .filter((item) => item.image);
+
+        setGalleryItems(items);
       } else {
-        data = await ApiService.getGallery({ eventId: 'all' });
-      }
-      
-      if (data.success && Array.isArray(data.data)) {
-        const activeItems = data.data.filter(item => item.isActive !== false);
-        
-        const mappedItems = activeItems.map((item) => ({
-          id: item.id,
-          type: item.mediaType,
-          title: item.caption || (item.event ? `Event: ${item.event.title}` : 'Gallery'),
-          image: getMediaUrl(item.mediaUrl),
-          eventId: item.eventId,
-          event: item.event,
-          isActive: item.isActive,
-        }));
-        
-        setGalleryItems(mappedItems);
-        
-        const images = mappedItems.filter(i => i.type === 'image').length;
-        const videos = mappedItems.filter(i => i.type === 'video').length;
-        setStats({
-          total: mappedItems.length,
-          images,
-          videos,
-        });
-      } else {
-        setError('No gallery items found');
         setGalleryItems([]);
+        setError('No gallery items found.');
       }
     } catch (err) {
       console.error('Gallery fetch error:', err);
-      setError('Failed to load gallery items');
+      setGalleryItems([]);
+      setError('Unable to load gallery items.');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const initialize = async () => {
+      try {
+        const response = await ApiService.getEvents({ limit: 100 });
+
+        if (response.success && response.data) {
+          setEvents(response.data.events || response.data || []);
+        }
+      } catch (err) {
+        console.error('Events fetch error:', err);
+      }
+
+      await fetchGalleryItems(null);
+    };
+
+    initialize();
+  }, [fetchGalleryItems]);
 
   const handleEventFilter = (eventId) => {
     setSelectedEventId(eventId);
+    setActiveIndex(null);
     fetchGalleryItems(eventId);
   };
 
-  const toggleVideo = (index) => {
-    if (playingVideo === index) {
-      if (videoRefs.current[index]) {
-        videoRefs.current[index].pause();
-      }
-      setPlayingVideo(null);
-    } else {
-      Object.keys(videoRefs.current).forEach((key) => {
-        if (videoRefs.current[key]) {
-          videoRefs.current[key].pause();
-        }
-      });
-      if (videoRefs.current[index]) {
-        videoRefs.current[index].play().catch(err => {
-          console.error('Video play error:', err);
-        });
-        videoRefs.current[index].muted = isMuted;
-      }
-      setPlayingVideo(index);
+  const closeViewer = useCallback(() => {
+    if (viewerVideoRef.current) {
+      viewerVideoRef.current.pause();
     }
-  };
 
-  const toggleMute = (index, e) => {
-    e.stopPropagation();
-    if (videoRefs.current[index]) {
-      const newMutedState = !videoRefs.current[index].muted;
-      videoRefs.current[index].muted = newMutedState;
-      setIsMuted(newMutedState);
+    setActiveIndex(null);
+  }, []);
+
+  const showPrevious = useCallback(() => {
+    setActiveIndex((current) =>
+      current === null
+        ? 0
+        : (current - 1 + galleryItems.length) % galleryItems.length
+    );
+  }, [galleryItems.length]);
+
+  const showNext = useCallback(() => {
+    setActiveIndex((current) =>
+      current === null
+        ? 0
+        : (current + 1) % galleryItems.length
+    );
+  }, [galleryItems.length]);
+
+  useEffect(() => {
+    if (activeIndex === null) return;
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') closeViewer();
+      if (event.key === 'ArrowLeft') showPrevious();
+      if (event.key === 'ArrowRight') showNext();
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = '';
+    };
+  }, [activeIndex, closeViewer, showPrevious, showNext]);
+
+  useEffect(() => {
+    if (activeIndex === null) return;
+
+    const item = galleryItems[activeIndex];
+
+    if (item?.type === 'video' && viewerVideoRef.current) {
+      viewerVideoRef.current.muted = isMuted;
+
+      viewerVideoRef.current.play().catch(() => {});
     }
-  };
+  }, [activeIndex, galleryItems, isMuted]);
 
-  // Loading state
-  if (loading) {
-    return (
-      <section className="py-20 px-4 bg-black relative overflow-hidden min-h-screen">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-12">
-            <div className="animate-pulse">
-              <div className="h-12 w-64 bg-gray-700 rounded mx-auto mb-4"></div>
-              <div className="h-6 w-96 bg-gray-700 rounded mx-auto"></div>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-12">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="aspect-square bg-gray-800 rounded animate-pulse"></div>
-            ))}
-          </div>
-        </div>
-      </section>
-    );
-  }
+  const imageCount = galleryItems.filter(
+    (item) => item.type === 'image'
+  ).length;
 
-  // Error or empty state
-  if (error && galleryItems.length === 0) {
-    return (
-      <section className="py-20 px-4 bg-black relative overflow-hidden min-h-screen">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="inline-flex items-center bg-white/5 backdrop-blur-sm px-6 py-2 mb-4 border-l-4 border-primary rounded-full"
-            >
-              <FaCamera className="text-primary mr-2" />
-              <span className="text-primary text-sm font-semibold">✦ GALLERY</span>
-            </motion.div>
-            <h2 className="text-4xl md:text-5xl font-extrabold text-white">
-              Photo & Video <span className="text-primary">Gallery</span>
-            </h2>
-            <div className="w-20 h-1 bg-primary mx-auto mt-4"></div>
-            <div className="mt-12 border-2 border-white/10 bg-white/5 backdrop-blur-sm rounded-2xl p-12 max-w-2xl mx-auto">
-              <div className="text-6xl mb-4">🎵</div>
-              <h3 className="text-2xl font-bold text-white mb-2">No Gallery Items Found</h3>
-              <p className="text-gray-400 text-lg">{error || 'No media items available'}</p>
-              <p className="text-gray-500 text-sm mt-2">Check back later for updates</p>
-            </div>
-          </div>
-        </div>
-      </section>
-    );
-  }
+  const videoCount = galleryItems.filter(
+    (item) => item.type === 'video'
+  ).length;
 
   return (
-    <section className="py-20 px-4 bg-black relative overflow-hidden min-h-screen">
-      {/* Background decorative elements */}
-      <div className="absolute top-0 right-0 w-80 h-80 bg-primary/5 rounded-full blur-3xl"></div>
-      <div className="absolute bottom-0 left-0 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl"></div>
+    <section className="min-h-screen overflow-hidden bg-black text-white">
 
-      <div className="max-w-7xl mx-auto relative">
-        {/* Header */}
+     {/* Hero Banner */}
+         <div className="relative w-full h-[400px] overflow-hidden">
+           <Image
+             src="/images/banner1.jpg"
+             alt="Djembe Circle Banner"
+             fill
+             className="object-cover"
+             priority
+           />
+           <div className="absolute inset-0 bg-black/70"></div>
+           <div className="absolute inset-0 flex items-center justify-center">
+             <div className="text-center px-4">
+               <motion.div
+                 initial={{ opacity: 0, y: 30 }}
+                 animate={{ opacity: 1, y: 0 }}
+                 transition={{ duration: 0.8 }}
+               >
+                 <div className="inline-flex items-center bg-white/5 backdrop-blur-sm px-6 py-2 mb-4 border-l-4 border-primary">
+                   <span className="text-primary text-sm font-semibold">✦ Gallery</span>
+                 </div>
+                 <h1 className="text-4xl md:text-6xl font-extrabold text-white">
+                   The <span className="text-primary">Djembe Circle</span>
+                 </h1>
+                 <p className="mt-4 text-lg md:text-xl text-gray-300 max-w-2xl mx-auto">
+                   Where rhythm meets community
+                 </p>
+               </motion.div>
+             </div>
+           </div>
+         </div>
+
+      {/* ALL OTHER TEXT AND CONTENT BELOW THE BANNER */}
+      <div className="mx-auto max-w-[1400px] px-4 pb-20 pt-12 sm:px-6 sm:pt-16 lg:px-8 lg:pt-20">
+
+        {/* Small section heading */}
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 0, y: 15 }}
           whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
           viewport={{ once: true }}
-          className="text-center mb-12"
+          transition={{ duration: 0.5 }}
+          className="mb-8 flex flex-col gap-5 sm:mb-10 sm:flex-row sm:items-end sm:justify-between"
         >
-          <div className="inline-flex items-center bg-white/5 backdrop-blur-sm px-6 py-2 mb-4 border-l-4 border-primary rounded-full">
-            <FaCamera className="text-primary mr-2" />
-            <span className="text-primary text-sm font-semibold">✦ GALLERY</span>
+          <div>
+            <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.25em] text-primary">
+              <FaCamera />
+              Photo & Video Collection
+            </div>
+
+            <h2 className="text-2xl font-semibold sm:text-3xl">
+              Explore Our Moments
+            </h2>
+
+            <p className="mt-2 max-w-xl text-sm leading-6 text-white/50">
+              Discover the performances, celebrations and experiences
+              that make every gathering special.
+            </p>
           </div>
-          <h2 className="text-4xl md:text-5xl font-extrabold text-white">
-            Photo & Video <span className="text-primary">Gallery</span>
-          </h2>
-          <div className="w-20 h-1 bg-primary mx-auto mt-4"></div>
-          <p className="mt-6 text-lg text-gray-300 max-w-2xl mx-auto">
-            Moments from our drum circles and events
-          </p>
-          
-          {/* Stats */}
-          <div className="flex flex-wrap justify-center gap-6 mt-8">
-            <div className="bg-white/5 px-6 py-3 border border-white/10 rounded-full">
-              <span className="text-2xl font-bold text-primary">{stats.total}</span>
-              <span className="text-gray-400 ml-2">Total</span>
+
+          <div className="flex gap-5 border-t border-white/10 pt-4 sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0">
+            <div>
+              <p className="text-2xl font-semibold tabular-nums">
+                {galleryItems.length}
+              </p>
+              <p className="mt-1 text-[10px] uppercase tracking-wider text-white/45">
+                Total
+              </p>
             </div>
-            <div className="bg-white/5 px-6 py-3 border border-white/10 rounded-full">
-              <span className="text-2xl font-bold text-primary">{stats.images}</span>
-              <span className="text-gray-400 ml-2">Photos</span>
+
+            <div>
+              <p className="text-2xl font-semibold tabular-nums">
+                {imageCount}
+              </p>
+              <p className="mt-1 text-[10px] uppercase tracking-wider text-white/45">
+                Photos
+              </p>
             </div>
-            <div className="bg-white/5 px-6 py-3 border border-white/10 rounded-full">
-              <span className="text-2xl font-bold text-primary">{stats.videos}</span>
-              <span className="text-gray-400 ml-2">Videos</span>
+
+            <div>
+              <p className="text-2xl font-semibold tabular-nums">
+                {videoCount}
+              </p>
+              <p className="mt-1 text-[10px] uppercase tracking-wider text-white/45">
+                Videos
+              </p>
             </div>
           </div>
         </motion.div>
 
-        {/* Event Filter */}
+        {/* EVENT FILTERS */}
         {events.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            viewport={{ once: true }}
-            className="mb-12"
-          >
-            <div className="flex flex-wrap items-center justify-center gap-3">
+          <div className="mb-10 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => handleEventFilter(null)}
+              className={`border px-4 py-2.5 text-xs transition-all duration-300 ${
+                selectedEventId === null
+                  ? 'border-primary bg-primary text-black'
+                  : 'border-white/10 text-white/60 hover:border-primary hover:text-white'
+              }`}
+            >
+              All Gallery
+            </button>
+
+            {events.map((event) => (
               <button
-                onClick={() => handleEventFilter(null)}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
-                  selectedEventId === null
-                    ? 'bg-primary text-white shadow-lg shadow-primary/30'
-                    : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white border border-white/10'
+                type="button"
+                key={event.id}
+                onClick={() => handleEventFilter(event.id)}
+                className={`border px-4 py-2.5 text-xs transition-all duration-300 ${
+                  selectedEventId === event.id
+                    ? 'border-primary bg-primary text-black'
+                    : 'border-white/10 text-white/60 hover:border-primary hover:text-white'
                 }`}
               >
-                <FaCamera className="inline mr-2" />
-                All Gallery
+                <FaCalendarAlt className="mr-2 inline" />
+                {event.title}
               </button>
-              {events.map((event) => (
-                <button
-                  key={event.id}
-                  onClick={() => handleEventFilter(event.id)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
-                    selectedEventId === event.id
-                      ? 'bg-primary text-white shadow-lg shadow-primary/30'
-                      : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white border border-white/10'
-                  }`}
-                >
-                  <FaCalendarAlt className="inline mr-2" />
-                  {event.title}
-                </button>
-              ))}
-            </div>
-          </motion.div>
+            ))}
+          </div>
         )}
 
-        {/* Gallery Grid */}
-        {galleryItems.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-12">
+        {/* LOADING */}
+        {loading && (
+          <div className="columns-1 gap-5 sm:columns-2 lg:columns-3 xl:columns-4">
+            {Array.from({ length: 8 }).map((_, index) => (
+              <div
+                key={index}
+                className="mb-5 animate-pulse break-inside-avoid bg-white/[0.06]"
+                style={{ height: `${230 + (index % 3) * 75}px` }}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* ERROR / EMPTY STATE */}
+        {!loading && galleryItems.length === 0 && (
+          <div className="border border-white/10 py-20 text-center">
+            <FaCamera className="mx-auto mb-5 text-3xl text-primary" />
+
+            <h3 className="text-xl font-semibold">
+              {error || 'No gallery items available'}
+            </h3>
+
+            <p className="mt-3 text-sm text-white/50">
+              Please check back later for new photos and videos.
+            </p>
+          </div>
+        )}
+
+        {/* PREMIUM MASONRY GALLERY */}
+        {!loading && galleryItems.length > 0 && (
+          <div className="columns-1 gap-4 sm:columns-2 sm:gap-5 lg:columns-3 xl:columns-4">
             {galleryItems.map((item, index) => (
-              <motion.div
+              <motion.button
+                type="button"
                 key={item.id || index}
-                initial={{ opacity: 0, y: 30 }}
+                onClick={() => setActiveIndex(index)}
+                initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: index * 0.08 }}
-                viewport={{ once: true }}
-                onMouseEnter={() => setHoveredIndex(index)}
-                onMouseLeave={() => {
-                  setHoveredIndex(null);
-                }}
-                className="group relative overflow-hidden border border-white/10 hover:border-primary/40 transition-all duration-500 bg-white/5 rounded-lg cursor-pointer"
+                whileHover={{ y: -3 }}
+                viewport={{ once: true, amount: 0.1 }}
+                transition={{ duration: 0.4 }}
+                aria-label={`View ${item.title}`}
+                className="group relative mb-4 block w-full break-inside-avoid overflow-hidden border border-white/10 bg-[#101010] text-left sm:mb-5"
               >
-                <div 
-                  className="relative aspect-square overflow-hidden bg-black"
-                  onClick={() => item.type === 'video' && toggleVideo(index)}
+                <div
+                  className="relative overflow-hidden"
+                  style={{
+                    aspectRatio: [
+                      '4 / 5',
+                      '3 / 4',
+                      '4 / 3',
+                      '5 / 6',
+                      '1 / 1',
+                    ][index % 5],
+                  }}
                 >
                   {item.type === 'video' ? (
                     <>
                       <video
-                        ref={(el) => {
-                          if (el) videoRefs.current[index] = el;
-                        }}
                         src={item.image}
-                        className="w-full h-full object-cover"
-                        loop={false}
+                        muted
                         playsInline
-                        muted={isMuted}
-                        preload="auto"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleVideo(index);
-                        }}
+                        preload="metadata"
+                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                       />
-                      {/* Always show overlay with play button when not playing */}
-                      {playingVideo !== index && (
-                        <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-                          <motion.div
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            className="w-20 h-20 bg-primary/90 rounded-full flex items-center justify-center shadow-lg shadow-primary/50"
-                          >
-                            <FaPlay className="text-white text-2xl ml-1" />
-                          </motion.div>
-                        </div>
-                      )}
-                      {/* Show pause on hover when playing */}
-                      {playingVideo === index && (
-                        <div 
-                          className={`absolute inset-0 bg-black/20 flex items-center justify-center transition-opacity duration-300 ${
-                            hoveredIndex === index ? 'opacity-100' : 'opacity-0'
-                          }`}
-                          onClick={() => toggleVideo(index)}
-                        >
-                          <motion.div
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            className="w-16 h-16 bg-primary/80 rounded-full flex items-center justify-center shadow-lg shadow-primary/50"
-                          >
-                            <FaPause className="text-white text-xl" />
-                          </motion.div>
-                        </div>
-                      )}
-                      {/* Video playing indicator */}
-                      {playingVideo === index && (
-                        <div className="absolute top-4 right-4 bg-green-500/80 backdrop-blur-sm px-3 py-1 border-l-4 border-green-500 rounded-full">
-                          <span className="text-xs text-white font-medium flex items-center gap-1">
-                            <FaVideo className="text-white" />
-                            PLAYING
-                          </span>
-                        </div>
-                      )}
-                      {/* Video badge when not playing */}
-                      {playingVideo !== index && (
-                        <div className="absolute top-4 right-4 bg-black/80 backdrop-blur-sm px-3 py-1 border-l-4 border-primary rounded-full">
-                          <span className="text-xs text-white font-medium flex items-center gap-1">
-                            <FaVideo className="text-primary" />
-                            VIDEO
-                          </span>
-                        </div>
-                      )}
-                      {/* Mute/Unmute Button */}
-                      {playingVideo === index && (
-                        <div 
-                          className="absolute bottom-4 right-4 z-10"
-                          onClick={(e) => toggleMute(index, e)}
-                        >
-                          <motion.div
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            className="w-10 h-10 bg-black/80 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/20 hover:border-primary/40 transition-all duration-300"
-                          >
-                            {videoRefs.current[index]?.muted ? (
-                              <FaVolumeMute className="text-white text-sm" />
-                            ) : (
-                              <FaVolumeUp className="text-white text-sm" />
-                            )}
-                          </motion.div>
-                        </div>
-                      )}
+
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/15 transition-colors group-hover:bg-black/35">
+                        <span className="flex h-14 w-14 items-center justify-center rounded-full border border-white/60 bg-black/40 text-white transition-all group-hover:border-primary group-hover:text-primary">
+                          <FaPlay className="ml-1" />
+                        </span>
+                      </div>
+
+                      <span className="absolute left-4 top-4 bg-black/70 px-3 py-2 text-[10px] uppercase tracking-widest">
+                        <FaVideo className="mr-2 inline text-primary" />
+                        Video
+                      </span>
                     </>
                   ) : (
                     <Image
                       src={item.image}
                       alt={item.title}
                       fill
-                      className={`object-cover transition-transform duration-700 ${
-                        hoveredIndex === index ? 'scale-110' : 'scale-100'
-                      }`}
-                      onError={(e) => {
-                        console.error(`Failed to load image: ${item.image}`);
-                        const parent = e.currentTarget.parentElement;
-                        if (parent) {
-                          const fallback = document.createElement('div');
-                          fallback.className = 'w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-purple-500/10';
-                          fallback.innerHTML = '<span class="text-6xl">🖼️</span>';
-                          parent.appendChild(fallback);
-                          e.currentTarget.style.display = 'none';
-                        }
-                      }}
-                      unoptimized={true}
+                      unoptimized
+                      sizes="(max-width: 639px) 100vw, (max-width: 1023px) 50vw, 33vw"
+                      className="object-cover transition-transform duration-700 group-hover:scale-105"
                     />
                   )}
-                  
-                  {/* Overlay for title - visible on hover */}
-                  <div className={`absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent transition-opacity duration-500 ${
-                    hoveredIndex === index || playingVideo === index ? 'opacity-100' : 'opacity-0'
-                  }`}>
-                    <div className="absolute bottom-0 left-0 right-0 p-6 transform translate-y-full group-hover:translate-y-0 transition-transform duration-500">
-                      <h3 className="text-white font-bold text-lg mb-1 line-clamp-2">{item.title}</h3>
-                      <p className="text-gray-300 text-sm flex items-center">
-                        {item.type === 'video' ? (
-                          <>
-                            <FaVideo className="text-primary mr-2" />
-                            Video
-                          </>
-                        ) : (
-                          <>
-                            <FaImage className="text-primary mr-2" />
-                            Photo
-                          </>
-                        )}
-                        {item.event && (
-                          <span className="ml-2 text-xs text-gray-400">• {item.event.title}</span>
-                        )}
-                      </p>
-                    </div>
-                  </div>
 
-                  {/* Event Badge */}
-                  {item.event && item.type !== 'video' && (
-                    <div className="absolute bottom-4 left-4 bg-black/80 backdrop-blur-sm px-3 py-1 border-l-4 border-primary rounded-full">
-                      <span className="text-xs text-white font-medium flex items-center gap-1">
-                        <FaCalendarAlt className="text-primary" />
+                  {/* Bottom text overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-80 transition-opacity group-hover:opacity-100" />
+
+                  <div className="absolute inset-x-0 bottom-0 p-5">
+                    <p className="mb-2 text-[9px] uppercase tracking-[0.2em] text-primary">
+                      {item.type === 'video' ? 'Video Collection' : 'Photography'}
+                    </p>
+
+                    <h3 className="line-clamp-2 text-base font-medium leading-snug text-white sm:text-lg">
+                      {item.title}
+                    </h3>
+
+                    {item.event?.title && (
+                      <p className="mt-2 text-xs text-white/60">
                         {item.event.title}
-                      </span>
-                    </div>
-                  )}
+                      </p>
+                    )}
 
-                  {/* Image Badge */}
-                  {item.type === 'image' && (
-                    <div className="absolute top-4 right-4 bg-black/80 backdrop-blur-sm px-3 py-1 border-l-4 border-primary rounded-full">
-                      <span className="text-xs text-white font-medium flex items-center gap-1">
-                        <FaImage className="text-primary" />
-                        PHOTO
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Hover actions */}
-                  <div className={`absolute top-4 left-4 flex space-x-2 transition-opacity duration-500 ${
-                    hoveredIndex === index ? 'opacity-100' : 'opacity-0'
-                  }`}>
-                    <button className="p-2 bg-black/60 backdrop-blur-sm border border-white/10 hover:border-primary/40 rounded-full transition-all duration-300">
-                      <svg className="w-4 h-4 text-gray-400 hover:text-red-500 transition-colors duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                      </svg>
-                    </button>
-                    <button className="p-2 bg-black/60 backdrop-blur-sm border border-white/10 hover:border-primary/40 rounded-full transition-all duration-300">
-                      <svg className="w-4 h-4 text-gray-400 hover:text-white transition-colors duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                      </svg>
-                    </button>
-                  </div>
-
-                  {/* Title visible on hover (bottom) */}
-                  <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-                    <p className="text-white font-semibold text-sm line-clamp-1">{item.title}</p>
+                    <p className="mt-3 flex items-center gap-2 text-[10px] uppercase tracking-widest text-white/70">
+                      View Moment
+                      <FaArrowRight className="text-primary transition-transform group-hover:translate-x-1" />
+                    </p>
                   </div>
                 </div>
-              </motion.div>
+              </motion.button>
             ))}
-          </div>
-        ) : (
-          <div className="text-center py-20">
-            <div className="text-6xl mb-4">📷</div>
-            <h3 className="text-xl text-white font-semibold mb-2">No items for this event</h3>
-            <p className="text-gray-400">Select a different event or view all gallery</p>
           </div>
         )}
 
-        {/* View More Button */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.4 }}
-          viewport={{ once: true }}
-          className="text-center mt-16"
-        >
+        {/* VIEW FULL GALLERY */}
+        <div className="mt-14 text-center sm:mt-20">
           <Link
             href="/gallery"
-            className="inline-flex items-center px-8 py-3 bg-primary text-white font-semibold hover:bg-primary/80 transition-all duration-300 hover:scale-105 shadow-lg shadow-primary/30 rounded-full group"
+            className="group inline-flex items-center gap-4 border border-white/20 px-7 py-4 text-xs font-semibold uppercase tracking-[0.2em] transition-all hover:border-primary hover:bg-primary hover:text-black"
           >
-            <span>View Full Gallery</span>
-            <FaArrowRight className="ml-2 group-hover:translate-x-1 transition-transform duration-300" />
+            View Full Gallery
+            <FaArrowRight className="transition-transform group-hover:translate-x-1" />
           </Link>
-        </motion.div>
+        </div>
       </div>
+
+      {/* FULL-SCREEN IMAGE / VIDEO VIEWER */}
+      <AnimatePresence>
+        {activeIndex !== null && galleryItems[activeIndex] && (
+          <motion.div
+            key="gallery-viewer"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[9999] flex flex-col bg-black/95 backdrop-blur-xl"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Gallery viewer"
+          >
+            {/* Viewer header */}
+            <div className="flex shrink-0 items-center justify-between gap-4 border-b border-white/10 px-4 py-4 sm:px-8">
+              <div className="min-w-0">
+                <p className="text-[10px] uppercase tracking-[0.25em] text-primary">
+                  Our Gallery
+                </p>
+
+                <p className="mt-1 truncate text-sm text-white/80">
+                  {galleryItems[activeIndex].title}
+                </p>
+              </div>
+
+              <div className="flex shrink-0 items-center gap-4">
+                <span className="text-xs text-white/60">
+                  {activeIndex + 1} / {galleryItems.length}
+                </span>
+
+                <button
+                  type="button"
+                  onClick={closeViewer}
+                  aria-label="Close viewer"
+                  className="flex h-10 w-10 items-center justify-center border border-white/20 hover:border-primary hover:text-primary"
+                >
+                  <FaTimes />
+                </button>
+              </div>
+            </div>
+
+            {/* Main media */}
+            <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden px-12 py-5 sm:px-24">
+              <button
+                type="button"
+                onClick={showPrevious}
+                aria-label="Previous image"
+                className="absolute left-2 z-20 flex h-10 w-10 items-center justify-center border border-white/20 bg-black/60 hover:border-primary hover:text-primary sm:left-6 sm:h-12 sm:w-12"
+              >
+                <FaChevronLeft />
+              </button>
+
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeIndex}
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.98 }}
+                  transition={{ duration: 0.2 }}
+                  className="relative flex h-full w-full items-center justify-center"
+                >
+                  {galleryItems[activeIndex].type === 'video' ? (
+                    <video
+                      key={galleryItems[activeIndex].image}
+                      ref={viewerVideoRef}
+                      src={galleryItems[activeIndex].image}
+                      controls
+                      autoPlay
+                      playsInline
+                      muted={isMuted}
+                      className="max-h-full max-w-full object-contain"
+                    />
+                  ) : (
+                    <Image
+                      key={galleryItems[activeIndex].image}
+                      src={galleryItems[activeIndex].image}
+                      alt={galleryItems[activeIndex].title}
+                      fill
+                      unoptimized
+                      sizes="100vw"
+                      className="object-contain"
+                    />
+                  )}
+                </motion.div>
+              </AnimatePresence>
+
+              {galleryItems[activeIndex].type === 'video' && (
+                <button
+                  type="button"
+                  onClick={() => setIsMuted((value) => !value)}
+                  aria-label={isMuted ? 'Unmute video' : 'Mute video'}
+                  className="absolute bottom-4 right-4 z-20 flex h-10 w-10 items-center justify-center border border-white/20 bg-black/70 hover:border-primary hover:text-primary"
+                >
+                  {isMuted ? <FaVolumeMute /> : <FaVolumeUp />}
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={showNext}
+                aria-label="Next image"
+                className="absolute right-2 z-20 flex h-10 w-10 items-center justify-center border border-white/20 bg-black/60 hover:border-primary hover:text-primary sm:right-6 sm:h-12 sm:w-12"
+              >
+                <FaChevronRight />
+              </button>
+            </div>
+
+            {/* Viewer footer */}
+            <div className="flex shrink-0 items-center justify-between gap-4 border-t border-white/10 px-4 py-4 sm:px-8">
+              <div className="min-w-0">
+                <p className="truncate text-xs text-white/65">
+                  {galleryItems[activeIndex].event?.title || 'Photo & Video Collection'}
+                </p>
+              </div>
+
+              <div className="flex shrink-0 gap-2">
+                <button
+                  type="button"
+                  onClick={showPrevious}
+                  aria-label="Previous item"
+                  className="flex h-9 w-9 items-center justify-center border border-white/20 hover:border-primary hover:text-primary"
+                >
+                  <FaChevronLeft />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={showNext}
+                  aria-label="Next item"
+                  className="flex h-9 w-9 items-center justify-center border border-white/20 hover:border-primary hover:text-primary"
+                >
+                  <FaChevronRight />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   );
 }
