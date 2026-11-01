@@ -1,7 +1,8 @@
 'use client';
+
 import { motion } from 'framer-motion';
 import Image from 'next/image';
-import { FaHeart, FaUsers, FaCalendar, FaStar, FaGlobe, FaTrophy } from 'react-icons/fa';
+import { FaTrophy, FaCalendar, FaStar, FaGlobe } from 'react-icons/fa';
 
 export default function About() {
   const features = [
@@ -31,15 +32,15 @@ export default function About() {
   const stats = [
     { label: 'Events Hosted', value: '375+' },
     { label: 'Happy Members', value: '15K+' },
-    { label: 'Countries', value: '15+' },
     { label: 'Satisfaction', value: '98%' }
   ];
 
   return (
     <section className="py-20 px-4 bg-black">
       <div className="max-w-7xl mx-auto">
+
         {/* Header */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
@@ -50,20 +51,24 @@ export default function About() {
             href="/about"
             className="inline-flex items-center bg-white/5 backdrop-blur-sm px-6 py-2 mb-6 border-l-4 border-primary hover:bg-white/10 transition-all duration-300"
           >
-            <span className="text-primary text-sm font-semibold">✦ About Us</span>
+            <span className="text-primary text-sm font-semibold">
+              ✦ About Us
+            </span>
           </a>
+
           <h2 className="text-4xl md:text-5xl font-extrabold text-white">
             The <span className="text-primary">Djembe Circle</span>
           </h2>
+
           <p className="mt-4 text-xl text-gray-300 max-w-3xl mx-auto">
-            Where rhythm meets community. We bring the transformative power of drumming to people of all ages and backgrounds.
+            Where rhythm meets community. We bring the transformative power
+            of drumming to people of all ages and backgrounds.
           </p>
         </motion.div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
-          {/* Left side - Image and Expert Facilitator */}
 
-             {/* Right side - Content */}
+          {/* Left Side - Content */}
           <motion.div
             initial={{ opacity: 0, x: 50 }}
             whileInView={{ opacity: 1, x: 0 }}
@@ -72,42 +77,61 @@ export default function About() {
             className="flex flex-col h-full"
           >
             <div className="space-y-8">
+
+              {/* Mission */}
               <div>
                 <h3 className="text-3xl font-bold text-white mb-4">
                   Our <span className="text-primary">Mission</span>
                 </h3>
+
                 <p className="text-gray-300 leading-relaxed text-lg">
-                  To create immersive drumming experiences that connect people, celebrate culture, 
-                  and promote well-being through the universal language of rhythm.
+                  To create immersive drumming experiences that connect people,
+                  celebrate culture, and promote well-being through the
+                  universal language of rhythm.
                 </p>
               </div>
 
+              {/* Why Join Us */}
               <div>
                 <h3 className="text-3xl font-bold text-white mb-4">
                   Why <span className="text-primary">Join Us</span>
                 </h3>
+
                 <p className="text-gray-300 leading-relaxed text-lg">
-                  Whether you're a beginner or an experienced drummer, our inclusive community 
-                  welcomes everyone. Experience the joy of collective rhythm-making in a supportive 
-                  and uplifting environment.
+                  Whether you're a beginner or an experienced drummer, our
+                  inclusive community welcomes everyone. Experience the joy
+                  of collective rhythm-making in a supportive and uplifting
+                  environment.
                 </p>
               </div>
 
+              {/* Features */}
               <div className="grid grid-cols-2 gap-4">
                 {features.map((feature, index) => (
                   <motion.div
                     key={index}
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1, duration: 0.5 }}
+                    transition={{
+                      delay: index * 0.1,
+                      duration: 0.5
+                    }}
                     viewport={{ once: true }}
                     className="p-4 bg-white/5 hover:bg-white/10 transition-all duration-300 border-l-4 border-primary/30 hover:border-primary"
                   >
                     <div className="flex items-start space-x-3">
-                      <div className="mt-1">{feature.icon}</div>
+                      <div className="mt-1">
+                        {feature.icon}
+                      </div>
+
                       <div>
-                        <h4 className="text-white font-semibold text-sm">{feature.title}</h4>
-                        <p className="text-gray-400 text-xs mt-1">{feature.description}</p>
+                        <h4 className="text-white font-semibold text-sm">
+                          {feature.title}
+                        </h4>
+
+                        <p className="text-gray-400 text-xs mt-1">
+                          {feature.description}
+                        </p>
                       </div>
                     </div>
                   </motion.div>
@@ -115,25 +139,33 @@ export default function About() {
               </div>
             </div>
 
-            {/* Stats Section - Below 4 cards on right side */}
+            {/* Stats Section */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3, duration: 0.5 }}
               viewport={{ once: true }}
-              className="grid grid-cols-2 gap-3 mt-8"
+              className="grid grid-cols-3 gap-3 mt-8"
             >
               {stats.map((stat, index) => (
                 <motion.div
                   key={index}
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 + index * 0.1, duration: 0.5 }}
+                  transition={{
+                    delay: 0.1 + index * 0.1,
+                    duration: 0.5
+                  }}
                   viewport={{ once: true }}
                   className="text-center bg-white/5 p-3 hover:bg-white/10 transition-all duration-300 border-l-4 border-primary/30 hover:border-primary"
                 >
-                  <div className="text-white font-bold text-xl">{stat.value}</div>
-                  <div className="text-gray-400 text-[10px] mt-0.5">{stat.label}</div>
+                  <div className="text-white font-bold text-xl">
+                    {stat.value}
+                  </div>
+
+                  <div className="text-gray-400 text-[10px] mt-0.5">
+                    {stat.label}
+                  </div>
                 </motion.div>
               ))}
             </motion.div>
@@ -151,12 +183,25 @@ export default function About() {
                 className="inline-flex items-center px-8 py-3 bg-primary text-white font-semibold hover:bg-primary/80 transition-all duration-300 hover:scale-105 shadow-lg shadow-primary/30"
               >
                 Discover Events
-                <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+
+                <svg
+                  className="w-4 h-4 ml-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 7l5 5m0 0l-5 5m5-5H6"
+                  />
                 </svg>
               </a>
             </motion.div>
           </motion.div>
+
+          {/* Right Side - Image and Expert Facilitator */}
           <motion.div
             initial={{ opacity: 0, x: -50 }}
             whileInView={{ opacity: 1, x: 0 }}
@@ -164,6 +209,7 @@ export default function About() {
             viewport={{ once: true }}
             className="flex flex-col h-full"
           >
+            {/* Image */}
             <div className="relative overflow-hidden border border-white/10 bg-black">
               <Image
                 src="/images/about2.jpg"
@@ -174,25 +220,36 @@ export default function About() {
                 priority
                 unoptimized={true}
                 onError={(e) => {
-                  console.error('Image failed to load: /images/about2.jpg');
+                  console.error(
+                    'Image failed to load: /images/about2.jpg'
+                  );
+
                   e.currentTarget.style.display = 'none';
+
                   const parent = e.currentTarget.parentElement;
+
                   if (parent) {
                     const fallback = document.createElement('div');
-                    fallback.className = 'w-full aspect-square flex items-center justify-center bg-gradient-to-br from-primary/20 to-purple-500/20';
+
+                    fallback.className =
+                      'w-full aspect-square flex items-center justify-center bg-gradient-to-br from-primary/20 to-purple-500/20';
+
                     fallback.innerHTML = `
                       <div class="text-center">
                         <span class="text-8xl">🥁</span>
-                        <p class="text-gray-400 mt-4 text-lg">Drum Circle Image</p>
+                        <p class="text-gray-400 mt-4 text-lg">
+                          Drum Circle Image
+                        </p>
                       </div>
                     `;
+
                     parent.appendChild(fallback);
                   }
                 }}
               />
             </div>
 
-            {/* Expert Facilitator Section - Below Image */}
+            {/* Expert Facilitator Section */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -201,23 +258,36 @@ export default function About() {
               className="mt-6 p-6 bg-white/5 border border-white/10 hover:border-primary/30 transition-all duration-300"
             >
               <div className="flex items-start space-x-4">
+
                 <div className="p-3 bg-primary/10 border-l-4 border-primary flex-shrink-0">
                   <FaTrophy className="text-primary text-2xl" />
                 </div>
+
                 <div>
-                  <h4 className="text-white font-bold text-base mb-1">Expert Facilitator</h4>
+                  <h4 className="text-white font-bold text-base mb-1">
+                    Expert Facilitator
+                  </h4>
+
                   <p className="text-gray-300 text-sm leading-relaxed">
-                    Learn from <span className="text-primary font-semibold">International Djembe Artist</span> and{' '}
-                    <span className="text-primary font-semibold">Guinness World Record</span> fame -{' '}
-                    <span className="text-white font-semibold">Sai Kumar Yeleswarapu</span>, 
-                    who brings unmatched expertise to every session.
+                    Learn from{' '}
+                    <span className="text-primary font-semibold">
+                      International Djembe Artist
+                    </span>{' '}
+                    and{' '}
+                    <span className="text-primary font-semibold">
+                      Guinness World Record
+                    </span>{' '}
+                    fame -{' '}
+                    <span className="text-white font-semibold">
+                      Sai Kumar Yeleswarapu
+                    </span>
+                    , who brings unmatched expertise to every session.
                   </p>
                 </div>
               </div>
             </motion.div>
           </motion.div>
 
-       
         </div>
       </div>
     </section>

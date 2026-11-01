@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const partnersData = [
   // Companies
-  { id: 1, name: 'Kia', logo: '/images/kia.svg', alt: 'Kia Motors', category: 'Companies' },
+  { id: 1, name: 'Kia', logo: '/images/kia.jpg', alt: 'Kia Motors', category: 'Companies' },
   { id: 2, name: 'Tata', logo: '/images/tata.png', alt: 'Tata Group', category: 'Companies' },
   { id: 3, name: 'Genpact', logo: '/images/genpact.svg', alt: 'Genpact', category: 'Companies' },
   { id: 4, name: 'Uber', logo: '/images/uber.svg', alt: 'Uber', category: 'Companies' },

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
@@ -14,14 +13,16 @@ import {
   FaVideo,
   FaVolumeMute,
   FaVolumeUp,
+  FaNewspaper,
 } from 'react-icons/fa';
 import Link from 'next/link';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Image from 'next/image';
 import ApiService from '../../services/api';
 
+// Convert relative upload paths into complete media URLs.
 const getMediaUrl = (path) => {
-  if (!path) return '';
+  if (!path || typeof path !== 'string') return '';
 
   if (/^https?:\/\//i.test(path)) return path;
 
@@ -31,16 +32,27 @@ const getMediaUrl = (path) => {
       process.env.NEXT_PUBLIC_API_URL ||
       'http://localhost:3001';
 
-    return `${base.replace(/\/api\/?$/, '').replace(/\/$/, '')}${path}`;
+    const cleanBase = base.replace(/\/api\/?$/, '').replace(/\/$/, '');
+    return `${cleanBase}${path}`;
   }
 
   return path;
 };
 
+const TABS = [
+  { id: 'all', label: 'All Moments', icon: FaCamera },
+  { id: 'image', label: 'Articles', icon: FaImage },
+  // { id: 'event', label: 'Events', icon: FaImage },
+
+  { id: 'video', label: 'Video', icon: FaVideo },
+ 
+];
+
 export default function Gallery() {
   const [galleryItems, setGalleryItems] = useState([]);
   const [events, setEvents] = useState([]);
   const [selectedEventId, setSelectedEventId] = useState(null);
+  const [activeTab, setActiveTab] = useState('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeIndex, setActiveIndex] = useState(null);
@@ -53,6 +65,11 @@ export default function Gallery() {
       setLoading(true);
       setError(null);
 
+      if (viewerVideoRef.current) {
+        viewerVideoRef.current.pause();
+        viewerVideoRef.current = null;
+      }
+
       const response = eventId
         ? await ApiService.getEventGallery(eventId)
         : await ApiService.getGallery({ eventId: 'all' });
@@ -60,19 +77,25 @@ export default function Gallery() {
       if (response.success && Array.isArray(response.data)) {
         const items = response.data
           .filter((item) => item.isActive !== false)
-          .map((item) => ({
-            id: item.id,
-            type: item.mediaType,
-            title:
-              item.caption ||
-              (item.event
-                ? `Event: ${item.event.title}`
-                : 'A Moment to Remember'),
-            image: getMediaUrl(item.mediaUrl),
-            eventId: item.eventId,
-            event: item.event,
-          }))
-          .filter((item) => item.image);
+          .map((item) => {
+            const type = String(item.mediaType || 'image').toLowerCase();
+
+            return {
+              id: item.id,
+              type,
+              title:
+                item.caption ||
+                item.title ||
+                (item.event
+                  ? `Event: ${item.event.title}`
+                  : 'A Moment to Remember'),
+              image: getMediaUrl(item.mediaUrl),
+              description: item.description || item.content || '',
+              eventId: item.eventId,
+              event: item.event,
+            };
+          })
+          .filter((item) => item.type === 'article' || item.image);
 
         setGalleryItems(items);
       } else {
@@ -106,15 +129,28 @@ export default function Gallery() {
     initialize();
   }, [fetchGalleryItems]);
 
+  const filteredItems = useMemo(() => {
+    if (activeTab === 'all') return galleryItems;
+    return galleryItems.filter((item) => item.type === activeTab);
+  }, [galleryItems, activeTab]);
+
   const handleEventFilter = (eventId) => {
     setSelectedEventId(eventId);
     setActiveIndex(null);
     fetchGalleryItems(eventId);
   };
 
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setActiveIndex(null);
+  };
+
   const closeViewer = useCallback(() => {
     if (viewerVideoRef.current) {
       viewerVideoRef.current.pause();
+      viewerVideoRef.current.removeAttribute('src');
+      viewerVideoRef.current.load();
+      viewerVideoRef.current = null;
     }
 
     setActiveIndex(null);
@@ -124,17 +160,17 @@ export default function Gallery() {
     setActiveIndex((current) =>
       current === null
         ? 0
-        : (current - 1 + galleryItems.length) % galleryItems.length
+        : (current - 1 + filteredItems.length) % filteredItems.length
     );
-  }, [galleryItems.length]);
+  }, [filteredItems.length]);
 
   const showNext = useCallback(() => {
     setActiveIndex((current) =>
       current === null
         ? 0
-        : (current + 1) % galleryItems.length
+        : (current + 1) % filteredItems.length
     );
-  }, [galleryItems.length]);
+  }, [filteredItems.length]);
 
   useEffect(() => {
     if (activeIndex === null) return;
@@ -157,61 +193,65 @@ export default function Gallery() {
   useEffect(() => {
     if (activeIndex === null) return;
 
-    const item = galleryItems[activeIndex];
+    const item = filteredItems[activeIndex];
 
     if (item?.type === 'video' && viewerVideoRef.current) {
       viewerVideoRef.current.muted = isMuted;
-
-      viewerVideoRef.current.play().catch(() => {});
+      viewerVideoRef.current.play().catch((err) => {
+        console.warn('Video autoplay was blocked:', err);
+      });
     }
-  }, [activeIndex, galleryItems, isMuted]);
+  }, [activeIndex, filteredItems, isMuted]);
 
-  const imageCount = galleryItems.filter(
-    (item) => item.type === 'image'
-  ).length;
+  const imageCount = galleryItems.filter((item) => item.type === 'image').length;
+  const videoCount = galleryItems.filter((item) => item.type === 'video').length;
+  const articleCount = galleryItems.filter((item) => item.type === 'article').length;
 
-  const videoCount = galleryItems.filter(
-    (item) => item.type === 'video'
-  ).length;
+  const activeItem =
+    activeIndex !== null ? filteredItems[activeIndex] : null;
 
   return (
     <section className="min-h-screen overflow-hidden bg-black text-white">
+      {/* Hero Banner */}
+      <div className="relative h-[320px] w-full overflow-hidden sm:h-[360px] lg:h-[400px]">
+        <Image
+          src="/images/banner1.jpg"
+          alt="Djembe Circle Banner"
+          fill
+          className="object-cover"
+          priority
+          unoptimized
+        />
 
-     {/* Hero Banner */}
-         <div className="relative w-full h-[400px] overflow-hidden">
-           <Image
-             src="/images/banner1.jpg"
-             alt="Djembe Circle Banner"
-             fill
-             className="object-cover"
-             priority
-           />
-           <div className="absolute inset-0 bg-black/70"></div>
-           <div className="absolute inset-0 flex items-center justify-center">
-             <div className="text-center px-4">
-               <motion.div
-                 initial={{ opacity: 0, y: 30 }}
-                 animate={{ opacity: 1, y: 0 }}
-                 transition={{ duration: 0.8 }}
-               >
-                 <div className="inline-flex items-center bg-white/5 backdrop-blur-sm px-6 py-2 mb-4 border-l-4 border-primary">
-                   <span className="text-primary text-sm font-semibold">✦ Gallery</span>
-                 </div>
-                 <h1 className="text-4xl md:text-6xl font-extrabold text-white">
-                   The <span className="text-primary">Djembe Circle</span>
-                 </h1>
-                 <p className="mt-4 text-lg md:text-xl text-gray-300 max-w-2xl mx-auto">
-                   Where rhythm meets community
-                 </p>
-               </motion.div>
-             </div>
-           </div>
-         </div>
+        <div className="absolute inset-0 bg-black/70" />
 
-      {/* ALL OTHER TEXT AND CONTENT BELOW THE BANNER */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="px-4 text-center">
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8 }}
+            >
+              <div className="mb-4 inline-flex items-center border-l-4 border-primary bg-white/5 px-6 py-2 backdrop-blur-sm">
+                <span className="text-sm font-semibold text-primary">
+                  ✦ Gallery
+                </span>
+              </div>
+
+              <h1 className="text-4xl font-extrabold text-white md:text-6xl">
+                The <span className="text-primary">Djembe Circle</span>
+              </h1>
+
+              <p className="mx-auto mt-4 max-w-2xl text-lg text-gray-300 md:text-xl">
+                Where rhythm meets community
+              </p>
+            </motion.div>
+          </div>
+        </div>
+      </div>
+
       <div className="mx-auto max-w-[1400px] px-4 pb-20 pt-12 sm:px-6 sm:pt-16 lg:px-8 lg:pt-20">
-
-        {/* Small section heading */}
+        {/* Section heading and statistics */}
         <motion.div
           initial={{ opacity: 0, y: 15 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -230,44 +270,75 @@ export default function Gallery() {
             </h2>
 
             <p className="mt-2 max-w-xl text-sm leading-6 text-white/50">
-              Discover the performances, celebrations and experiences
-              that make every gathering special.
+              Discover the performances, celebrations and experiences that
+              make every gathering special.
             </p>
           </div>
 
           <div className="flex gap-5 border-t border-white/10 pt-4 sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0">
-            <div>
-              <p className="text-2xl font-semibold tabular-nums">
-                {galleryItems.length}
-              </p>
-              <p className="mt-1 text-[10px] uppercase tracking-wider text-white/45">
-                Total
-              </p>
-            </div>
-
-            <div>
-              <p className="text-2xl font-semibold tabular-nums">
-                {imageCount}
-              </p>
-              <p className="mt-1 text-[10px] uppercase tracking-wider text-white/45">
-                Photos
-              </p>
-            </div>
-
-            <div>
-              <p className="text-2xl font-semibold tabular-nums">
-                {videoCount}
-              </p>
-              <p className="mt-1 text-[10px] uppercase tracking-wider text-white/45">
-                Videos
-              </p>
-            </div>
+            {[
+              { value: galleryItems.length, label: 'Total' },
+              { value: imageCount, label: 'Photos' },
+              { value: videoCount, label: 'Videos' },
+              { value: articleCount, label: 'Articles' },
+            ].map((stat) => (
+              <div key={stat.label}>
+                <p className="text-2xl font-semibold tabular-nums">
+                  {stat.value}
+                </p>
+                <p className="mt-1 text-[10px] uppercase tracking-wider text-white/45">
+                  {stat.label}
+                </p>
+              </div>
+            ))}
           </div>
         </motion.div>
 
-        {/* EVENT FILTERS */}
+        {/* Premium content tabs */}
+        <div className="mb-7 border-b border-white/10">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            {TABS.map((tab) => {
+              const Icon = tab.icon;
+              const count =
+                tab.id === 'all'
+                  ? galleryItems.length
+                  : galleryItems.filter((item) => item.type === tab.id).length;
+
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => handleTabChange(tab.id)}
+                  className={`group relative inline-flex items-center gap-2 px-4 py-3 text-xs font-semibold transition-all duration-300 sm:px-5 sm:text-sm ${
+                    activeTab === tab.id
+                      ? 'text-primary'
+                      : 'text-white/50 hover:text-white'
+                  }`}
+                >
+                  <Icon className="text-[13px]" />
+                  {tab.label}
+                  <span
+                    className={`text-[10px] tabular-nums ${
+                      activeTab === tab.id ? 'text-primary/70' : 'text-white/30'
+                    }`}
+                  >
+                    {count}
+                  </span>
+
+                  <span
+                    className={`absolute bottom-0 left-0 h-[2px] bg-primary transition-all duration-300 ${
+                      activeTab === tab.id ? 'w-full' : 'w-0 group-hover:w-full'
+                    }`}
+                  />
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Event filters */}
         {events.length > 0 && (
-          <div className="mb-10 flex flex-wrap gap-2">
+          <div className="mb-10 flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => handleEventFilter(null)}
@@ -277,7 +348,7 @@ export default function Gallery() {
                   : 'border-white/10 text-white/60 hover:border-primary hover:text-white'
               }`}
             >
-              All Gallery
+              All Events
             </button>
 
             {events.map((event) => (
@@ -298,124 +369,177 @@ export default function Gallery() {
           </div>
         )}
 
-        {/* LOADING */}
+        {/* Loading */}
         {loading && (
           <div className="columns-1 gap-5 sm:columns-2 lg:columns-3 xl:columns-4">
             {Array.from({ length: 8 }).map((_, index) => (
               <div
                 key={index}
-                className="mb-5 animate-pulse break-inside-avoid bg-white/[0.06]"
+                className="mb-5 animate-pulse break-inside-avoid border border-white/5 bg-white/[0.06]"
                 style={{ height: `${230 + (index % 3) * 75}px` }}
               />
             ))}
           </div>
         )}
 
-        {/* ERROR / EMPTY STATE */}
-        {!loading && galleryItems.length === 0 && (
-          <div className="border border-white/10 py-20 text-center">
+        {/* Error / Empty state */}
+        {!loading && filteredItems.length === 0 && (
+          <div className="border border-white/10 bg-white/[0.02] py-20 text-center">
             <FaCamera className="mx-auto mb-5 text-3xl text-primary" />
 
             <h3 className="text-xl font-semibold">
-              {error || 'No gallery items available'}
+              {error ||
+                (activeTab === 'article'
+                  ? 'No articles available yet'
+                  : 'No gallery items available')}
             </h3>
 
             <p className="mt-3 text-sm text-white/50">
-              Please check back later for new photos and videos.
+              {activeTab === 'article'
+                ? 'Articles will appear here when they are added.'
+                : 'Please check back later for new photos and videos.'}
             </p>
           </div>
         )}
 
-        {/* PREMIUM MASONRY GALLERY */}
-        {!loading && galleryItems.length > 0 && (
+        {/* Premium masonry gallery */}
+        {!loading && filteredItems.length > 0 && (
           <div className="columns-1 gap-4 sm:columns-2 sm:gap-5 lg:columns-3 xl:columns-4">
-            {galleryItems.map((item, index) => (
-              <motion.button
-                type="button"
+            {filteredItems.map((item, index) => (
+              <motion.article
                 key={item.id || index}
-                onClick={() => setActiveIndex(index)}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                whileHover={{ y: -3 }}
+                whileHover={{ y: -4 }}
                 viewport={{ once: true, amount: 0.1 }}
                 transition={{ duration: 0.4 }}
-                aria-label={`View ${item.title}`}
-                className="group relative mb-4 block w-full break-inside-avoid overflow-hidden border border-white/10 bg-[#101010] text-left sm:mb-5"
+                className="group relative mb-4 block w-full break-inside-avoid overflow-hidden border border-white/10 bg-[#101010] text-left transition-colors duration-300 hover:border-primary/50 sm:mb-5"
               >
-                <div
-                  className="relative overflow-hidden"
-                  style={{
-                    aspectRatio: [
-                      '4 / 5',
-                      '3 / 4',
-                      '4 / 3',
-                      '5 / 6',
-                      '1 / 1',
-                    ][index % 5],
-                  }}
+                <button
+                  type="button"
+                  onClick={() => setActiveIndex(index)}
+                  aria-label={`View ${item.title}`}
+                  className="block w-full text-left"
                 >
-                  {item.type === 'video' ? (
-                    <>
-                      <video
-                        src={item.image}
-                        muted
-                        playsInline
-                        preload="metadata"
-                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-                      />
+                  <div
+                    className="relative overflow-hidden bg-[#151515]"
+                    style={{
+                      aspectRatio: [
+                        '4 / 5',
+                        '3 / 4',
+                        '4 / 3',
+                        '5 / 6',
+                        '1 / 1',
+                      ][index % 5],
+                    }}
+                  >
+                    {item.type === 'video' ? (
+                      <>
+                        {/* Muted autoplay creates a real moving video preview.
+                            No backend thumbnail or poster image is required. */}
+                        <video
+                          key={item.image}
+                          src={item.image}
+                          muted
+                          autoPlay
+                          loop
+                          playsInline
+                          preload="auto"
+                          controls={false}
+                          disablePictureInPicture
+                          className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                          onError={(event) => {
+                            event.currentTarget.style.opacity = '0';
+                          }}
+                        />
 
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/15 transition-colors group-hover:bg-black/35">
-                        <span className="flex h-14 w-14 items-center justify-center rounded-full border border-white/60 bg-black/40 text-white transition-all group-hover:border-primary group-hover:text-primary">
-                          <FaPlay className="ml-1" />
+                        <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/10 transition-colors group-hover:bg-black/25">
+                          <span className="flex h-14 w-14 items-center justify-center rounded-full border border-white/60 bg-black/45 text-white backdrop-blur-sm transition-all group-hover:border-primary group-hover:bg-primary group-hover:text-black">
+                            <FaPlay className="ml-1" />
+                          </span>
+                        </div>
+
+                        <span className="absolute left-4 top-4 border border-white/15 bg-black/70 px-3 py-2 text-[10px] uppercase tracking-widest text-white backdrop-blur-md">
+                          <FaVideo className="mr-2 inline text-primary" />
+                          Video
                         </span>
+                      </>
+                    ) : item.type === 'article' ? (
+                      <div className="flex h-full min-h-[260px] flex-col justify-between bg-gradient-to-br from-[#191919] via-[#101010] to-[#242018] p-6">
+                        <div className="flex h-12 w-12 items-center justify-center border border-primary/40 bg-primary/10 text-primary">
+                          <FaNewspaper className="text-xl" />
+                        </div>
+
+                        <div>
+                          <p className="mb-2 text-[9px] uppercase tracking-[0.2em] text-primary">
+                            Djembe Circle Journal
+                          </p>
+                          <h3 className="text-xl font-semibold leading-snug text-white">
+                            {item.title}
+                          </h3>
+                          {item.description && (
+                            <p className="mt-3 line-clamp-3 text-sm leading-6 text-white/55">
+                              {item.description}
+                            </p>
+                          )}
+                        </div>
                       </div>
-
-                      <span className="absolute left-4 top-4 bg-black/70 px-3 py-2 text-[10px] uppercase tracking-widest">
-                        <FaVideo className="mr-2 inline text-primary" />
-                        Video
-                      </span>
-                    </>
-                  ) : (
-                    <Image
-                      src={item.image}
-                      alt={item.title}
-                      fill
-                      unoptimized
-                      sizes="(max-width: 639px) 100vw, (max-width: 1023px) 50vw, 33vw"
-                      className="object-cover transition-transform duration-700 group-hover:scale-105"
-                    />
-                  )}
-
-                  {/* Bottom text overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-80 transition-opacity group-hover:opacity-100" />
-
-                  <div className="absolute inset-x-0 bottom-0 p-5">
-                    <p className="mb-2 text-[9px] uppercase tracking-[0.2em] text-primary">
-                      {item.type === 'video' ? 'Video Collection' : 'Photography'}
-                    </p>
-
-                    <h3 className="line-clamp-2 text-base font-medium leading-snug text-white sm:text-lg">
-                      {item.title}
-                    </h3>
-
-                    {item.event?.title && (
-                      <p className="mt-2 text-xs text-white/60">
-                        {item.event.title}
-                      </p>
+                    ) : (
+                      <Image
+                        src={item.image}
+                        alt={item.title}
+                        fill
+                        unoptimized
+                        sizes="(max-width: 639px) 100vw, (max-width: 1023px) 50vw, 33vw"
+                        className="object-cover transition-transform duration-700 group-hover:scale-105"
+                      />
                     )}
 
-                    <p className="mt-3 flex items-center gap-2 text-[10px] uppercase tracking-widest text-white/70">
-                      View Moment
-                      <FaArrowRight className="text-primary transition-transform group-hover:translate-x-1" />
-                    </p>
+                    {item.type !== 'article' && (
+                      <>
+                        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/90 via-black/5 to-transparent opacity-90 transition-opacity group-hover:opacity-100" />
+
+                        <div className="pointer-events-none absolute inset-x-0 bottom-0 p-5">
+                          <p className="mb-2 text-[9px] uppercase tracking-[0.2em] text-primary">
+                            {item.type === 'video'
+                              ? 'Video Collection'
+                              : 'Photography'}
+                          </p>
+
+                          <h3 className="line-clamp-2 text-base font-medium leading-snug text-white sm:text-lg">
+                            {item.title}
+                          </h3>
+
+                          {item.event?.title && (
+                            <p className="mt-2 text-xs text-white/60">
+                              {item.event.title}
+                            </p>
+                          )}
+
+                          <p className="mt-3 flex items-center gap-2 text-[10px] uppercase tracking-widest text-white/70">
+                            View Moment
+                            <FaArrowRight className="text-primary transition-transform group-hover:translate-x-1" />
+                          </p>
+                        </div>
+                      </>
+                    )}
+
+                    {item.type === 'article' && (
+                      <div className="border-t border-white/10 px-6 py-4">
+                        <span className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-white/60">
+                          Read Article
+                          <FaArrowRight className="text-primary transition-transform group-hover:translate-x-1" />
+                        </span>
+                      </div>
+                    )}
                   </div>
-                </div>
-              </motion.button>
+                </button>
+              </motion.article>
             ))}
           </div>
         )}
 
-        {/* VIEW FULL GALLERY */}
+        {/* View Full Gallery */}
         <div className="mt-14 text-center sm:mt-20">
           <Link
             href="/gallery"
@@ -427,9 +551,9 @@ export default function Gallery() {
         </div>
       </div>
 
-      {/* FULL-SCREEN IMAGE / VIDEO VIEWER */}
+      {/* Full-screen image / video / article viewer */}
       <AnimatePresence>
-        {activeIndex !== null && galleryItems[activeIndex] && (
+        {activeIndex !== null && activeItem && (
           <motion.div
             key="gallery-viewer"
             initial={{ opacity: 0 }}
@@ -448,20 +572,20 @@ export default function Gallery() {
                 </p>
 
                 <p className="mt-1 truncate text-sm text-white/80">
-                  {galleryItems[activeIndex].title}
+                  {activeItem.title}
                 </p>
               </div>
 
               <div className="flex shrink-0 items-center gap-4">
                 <span className="text-xs text-white/60">
-                  {activeIndex + 1} / {galleryItems.length}
+                  {activeIndex + 1} / {filteredItems.length}
                 </span>
 
                 <button
                   type="button"
                   onClick={closeViewer}
                   aria-label="Close viewer"
-                  className="flex h-10 w-10 items-center justify-center border border-white/20 hover:border-primary hover:text-primary"
+                  className="flex h-10 w-10 items-center justify-center border border-white/20 transition-colors hover:border-primary hover:text-primary"
                 >
                   <FaTimes />
                 </button>
@@ -473,37 +597,51 @@ export default function Gallery() {
               <button
                 type="button"
                 onClick={showPrevious}
-                aria-label="Previous image"
-                className="absolute left-2 z-20 flex h-10 w-10 items-center justify-center border border-white/20 bg-black/60 hover:border-primary hover:text-primary sm:left-6 sm:h-12 sm:w-12"
+                aria-label="Previous item"
+                className="absolute left-2 z-20 flex h-10 w-10 items-center justify-center border border-white/20 bg-black/60 transition-colors hover:border-primary hover:text-primary sm:left-6 sm:h-12 sm:w-12"
               >
                 <FaChevronLeft />
               </button>
 
               <AnimatePresence mode="wait">
                 <motion.div
-                  key={activeIndex}
+                  key={activeItem.id || activeIndex}
                   initial={{ opacity: 0, scale: 0.98 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.98 }}
                   transition={{ duration: 0.2 }}
                   className="relative flex h-full w-full items-center justify-center"
                 >
-                  {galleryItems[activeIndex].type === 'video' ? (
+                  {activeItem.type === 'video' ? (
                     <video
-                      key={galleryItems[activeIndex].image}
+                      key={activeItem.image}
                       ref={viewerVideoRef}
-                      src={galleryItems[activeIndex].image}
+                      src={activeItem.image}
                       controls
                       autoPlay
                       playsInline
                       muted={isMuted}
                       className="max-h-full max-w-full object-contain"
                     />
+                  ) : activeItem.type === 'article' ? (
+                    <article className="max-h-full w-full max-w-3xl overflow-y-auto border border-white/10 bg-[#101010] p-6 sm:p-10">
+                      <FaNewspaper className="mb-5 text-3xl text-primary" />
+                      <p className="mb-3 text-[10px] uppercase tracking-[0.25em] text-primary">
+                        Djembe Circle Journal
+                      </p>
+                      <h2 className="text-2xl font-semibold leading-snug sm:text-4xl">
+                        {activeItem.title}
+                      </h2>
+                      <p className="mt-6 whitespace-pre-line text-sm leading-8 text-white/65 sm:text-base">
+                        {activeItem.description ||
+                          'Article content has not been added yet.'}
+                      </p>
+                    </article>
                   ) : (
                     <Image
-                      key={galleryItems[activeIndex].image}
-                      src={galleryItems[activeIndex].image}
-                      alt={galleryItems[activeIndex].title}
+                      key={activeItem.image}
+                      src={activeItem.image}
+                      alt={activeItem.title}
                       fill
                       unoptimized
                       sizes="100vw"
@@ -513,12 +651,12 @@ export default function Gallery() {
                 </motion.div>
               </AnimatePresence>
 
-              {galleryItems[activeIndex].type === 'video' && (
+              {activeItem.type === 'video' && (
                 <button
                   type="button"
                   onClick={() => setIsMuted((value) => !value)}
                   aria-label={isMuted ? 'Unmute video' : 'Mute video'}
-                  className="absolute bottom-4 right-4 z-20 flex h-10 w-10 items-center justify-center border border-white/20 bg-black/70 hover:border-primary hover:text-primary"
+                  className="absolute bottom-4 right-4 z-20 flex h-10 w-10 items-center justify-center border border-white/20 bg-black/70 transition-colors hover:border-primary hover:text-primary"
                 >
                   {isMuted ? <FaVolumeMute /> : <FaVolumeUp />}
                 </button>
@@ -527,8 +665,8 @@ export default function Gallery() {
               <button
                 type="button"
                 onClick={showNext}
-                aria-label="Next image"
-                className="absolute right-2 z-20 flex h-10 w-10 items-center justify-center border border-white/20 bg-black/60 hover:border-primary hover:text-primary sm:right-6 sm:h-12 sm:w-12"
+                aria-label="Next item"
+                className="absolute right-2 z-20 flex h-10 w-10 items-center justify-center border border-white/20 bg-black/60 transition-colors hover:border-primary hover:text-primary sm:right-6 sm:h-12 sm:w-12"
               >
                 <FaChevronRight />
               </button>
@@ -538,7 +676,7 @@ export default function Gallery() {
             <div className="flex shrink-0 items-center justify-between gap-4 border-t border-white/10 px-4 py-4 sm:px-8">
               <div className="min-w-0">
                 <p className="truncate text-xs text-white/65">
-                  {galleryItems[activeIndex].event?.title || 'Photo & Video Collection'}
+                  {activeItem.event?.title || 'Photo & Video Collection'}
                 </p>
               </div>
 
@@ -547,7 +685,7 @@ export default function Gallery() {
                   type="button"
                   onClick={showPrevious}
                   aria-label="Previous item"
-                  className="flex h-9 w-9 items-center justify-center border border-white/20 hover:border-primary hover:text-primary"
+                  className="flex h-9 w-9 items-center justify-center border border-white/20 transition-colors hover:border-primary hover:text-primary"
                 >
                   <FaChevronLeft />
                 </button>
@@ -556,7 +694,7 @@ export default function Gallery() {
                   type="button"
                   onClick={showNext}
                   aria-label="Next item"
-                  className="flex h-9 w-9 items-center justify-center border border-white/20 hover:border-primary hover:text-primary"
+                  className="flex h-9 w-9 items-center justify-center border border-white/20 transition-colors hover:border-primary hover:text-primary"
                 >
                   <FaChevronRight />
                 </button>

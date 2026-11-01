@@ -5,11 +5,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   FaPlay,
   FaArrowRight,
-  FaImage,
+  FaCamera,
   FaPause,
   FaVolumeUp,
   FaVolumeMute,
-  FaCamera,
   FaVideo,
   FaCalendarAlt,
 } from 'react-icons/fa';
@@ -50,7 +49,7 @@ export default function Gallery() {
   const [playingVideo, setPlayingVideo] = useState(null);
   const [isMuted, setIsMuted] = useState(true);
 
-  // UI state for the 3D carousel
+  // Carousel state
   const [activeSlide, setActiveSlide] = useState(0);
 
   const videoRefs = useRef({});
@@ -61,6 +60,7 @@ export default function Gallery() {
     videos: 0,
   });
 
+  // Fetch initial data
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -75,7 +75,7 @@ export default function Gallery() {
           setEvents(eventList);
         }
 
-        await fetchGalleryItems(selectedEventId);
+        await fetchGalleryItems(null);
       } catch (err) {
         console.error('Fetch error:', err);
         setError('Failed to load data');
@@ -85,12 +85,30 @@ export default function Gallery() {
     };
 
     fetchData();
+
+    return () => {
+      Object.values(videoRefs.current).forEach((video) => {
+        if (video) {
+          video.pause();
+        }
+      });
+    };
   }, []);
 
+  // Fetch gallery items
   const fetchGalleryItems = async (eventId) => {
     try {
       setLoading(true);
       setError(null);
+
+      // Stop all currently playing videos
+      Object.values(videoRefs.current).forEach((video) => {
+        if (video) video.pause();
+      });
+
+      videoRefs.current = {};
+
+      setPlayingVideo(null);
 
       let data;
 
@@ -119,14 +137,16 @@ export default function Gallery() {
 
         setGalleryItems(mappedItems);
 
-        // Keep the original four-item display limit
-        const firstFour = mappedItems.slice(0, 4);
-        setDisplayItems(firstFour);
+        // Display first FIVE gallery items
+        const firstFive = mappedItems.slice(0, 5);
 
-        // Reset carousel position when the gallery changes
+        setDisplayItems(firstFive);
+
+        // Reset carousel
         setActiveSlide(0);
         setPlayingVideo(null);
 
+        // Calculate statistics
         const images = mappedItems.filter(
           (item) => item.type === 'image'
         ).length;
@@ -154,46 +174,53 @@ export default function Gallery() {
     }
   };
 
+  // Event filter
   const handleEventFilter = (eventId) => {
     setSelectedEventId(eventId);
     fetchGalleryItems(eventId);
   };
 
-  // Existing video playback logic
-  const toggleVideo = (index) => {
+  // Video playback
+  const toggleVideo = async (index) => {
+    const video = videoRefs.current[index];
+
+    if (!video) return;
+
+    // Pause current video
     if (playingVideo === index) {
-      if (videoRefs.current[index]) {
-        videoRefs.current[index].pause();
-      }
-
+      video.pause();
       setPlayingVideo(null);
-    } else {
-      Object.keys(videoRefs.current).forEach((key) => {
-        if (videoRefs.current[key]) {
-          videoRefs.current[key].pause();
-        }
-      });
+      return;
+    }
 
-      if (videoRefs.current[index]) {
-        videoRefs.current[index].play().catch((err) => {
-          console.error('Video play error:', err);
-        });
-
-        videoRefs.current[index].muted = isMuted;
+    // Pause all other videos
+    Object.keys(videoRefs.current).forEach((key) => {
+      if (videoRefs.current[key]) {
+        videoRefs.current[key].pause();
       }
+    });
 
+    video.muted = isMuted;
+
+    try {
+      await video.play();
       setPlayingVideo(index);
+    } catch (err) {
+      console.error('Video play error:', err);
+      setPlayingVideo(null);
     }
   };
 
-  // Existing mute/unmute logic
+  // Mute / Unmute
   const toggleMute = (index, e) => {
     e.stopPropagation();
 
-    if (videoRefs.current[index]) {
-      const newMutedState = !videoRefs.current[index].muted;
+    const video = videoRefs.current[index];
 
-      videoRefs.current[index].muted = newMutedState;
+    if (video) {
+      const newMutedState = !video.muted;
+
+      video.muted = newMutedState;
       setIsMuted(newMutedState);
     }
   };
@@ -212,7 +239,8 @@ export default function Gallery() {
     if (!displayItems.length) return;
 
     setActiveSlide(
-      (previous) => (previous + 1) % displayItems.length
+      (previous) =>
+        (previous + 1) % displayItems.length
     );
   };
 
@@ -227,8 +255,8 @@ export default function Gallery() {
             <div className="mx-auto h-4 w-72 max-w-full bg-white/10" />
           </div>
 
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            {[...Array(4)].map((_, index) => (
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+            {[...Array(5)].map((_, index) => (
               <div
                 key={index}
                 className="aspect-[3/4] animate-pulse bg-white/5"
@@ -252,6 +280,7 @@ export default function Gallery() {
               className="mb-3 inline-flex items-center border-l-4 border-primary bg-white/5 px-4 py-2"
             >
               <FaCamera className="mr-2 text-xs text-primary" />
+
               <span className="text-xs font-semibold text-primary">
                 GALLERY
               </span>
@@ -352,7 +381,7 @@ export default function Gallery() {
           </div>
         </motion.div>
 
-        {/* Event filter - existing functionality */}
+        {/* Event filter */}
         {events.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 15 }}
@@ -362,6 +391,7 @@ export default function Gallery() {
             className="mb-10"
           >
             <div className="flex flex-wrap items-center justify-center gap-2">
+
               <button
                 type="button"
                 onClick={() => handleEventFilter(null)}
@@ -401,6 +431,7 @@ export default function Gallery() {
               className="relative mx-auto h-[390px] w-full max-w-6xl sm:h-[470px] lg:h-[530px]"
               style={{ perspective: '1600px' }}
             >
+
               {/* Subtle carousel floor glow */}
               <div className="pointer-events-none absolute bottom-5 left-1/2 h-20 w-3/4 -translate-x-1/2 rounded-full bg-primary/[0.08] blur-3xl" />
 
@@ -415,7 +446,13 @@ export default function Gallery() {
 
                 const x = offset * 230;
                 const rotate = -offset * 30;
-                const scale = isActive ? 1 : Math.abs(offset) === 1 ? 0.82 : 0.68;
+
+                const scale = isActive
+                  ? 1
+                  : Math.abs(offset) === 1
+                    ? 0.82
+                    : 0.68;
+
                 const opacity = isVisible
                   ? isActive
                     ? 1
@@ -455,27 +492,67 @@ export default function Gallery() {
                     }}
                     className="group absolute left-1/2 top-1/2 h-[310px] w-[220px] cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-[#101010] p-2 shadow-[0_25px_70px_rgba(0,0,0,0.7)] sm:h-[390px] sm:w-[280px] sm:rounded-3xl sm:p-2.5 lg:h-[430px] lg:w-[320px]"
                   >
+
                     {/* Card image/media */}
                     <div className="relative h-full w-full overflow-hidden rounded-xl bg-black sm:rounded-2xl">
 
                       {item.type === 'video' ? (
                         <>
+                          {/* Video preview - actual video frame */}
                           <video
                             ref={(el) => {
-                              if (el) videoRefs.current[index] = el;
+                              if (el) {
+                                videoRefs.current[index] = el;
+                              }
                             }}
                             src={item.image}
                             className="h-full w-full object-cover"
                             loop={false}
                             playsInline
                             muted={isMuted}
-                            preload="metadata"
+                            preload="auto"
+                            controls={false}
+                            onLoadedData={(e) => {
+                              const video = e.currentTarget;
+
+                              // Seek to a visible frame for thumbnail preview
+                              if (
+                                video.duration > 0 &&
+                                video.currentTime === 0 &&
+                                !video.dataset.previewReady
+                              ) {
+                                video.dataset.previewReady = 'true';
+
+                                video.currentTime = Math.min(
+                                  0.15,
+                                  video.duration / 2
+                                );
+                              }
+                            }}
+                            onSeeked={(e) => {
+                              const video = e.currentTarget;
+
+                              // Keep video paused at preview frame
+                              if (playingVideo !== index) {
+                                video.pause();
+                              }
+                            }}
+                            onEnded={() => {
+                              setPlayingVideo(null);
+                            }}
+                            onError={() => {
+                              console.error(
+                                'Video failed to load:',
+                                item.image
+                              );
+                            }}
                             onClick={(e) => {
                               e.stopPropagation();
                               toggleVideo(index);
                             }}
                           />
 
+                          {/* Play button */}
                           {playingVideo !== index && (
                             <button
                               type="button"
@@ -484,7 +561,7 @@ export default function Gallery() {
                                 e.stopPropagation();
                                 toggleVideo(index);
                               }}
-                              className="absolute inset-0 flex items-center justify-center bg-black/25"
+                              className="absolute inset-0 z-10 flex items-center justify-center bg-black/10"
                             >
                               <span className="flex h-14 w-14 items-center justify-center rounded-full border border-white/40 bg-primary/90 text-white shadow-xl shadow-primary/20 transition-transform duration-300 hover:scale-110">
                                 <FaPlay className="ml-1" />
@@ -492,6 +569,7 @@ export default function Gallery() {
                             </button>
                           )}
 
+                          {/* Pause and mute controls */}
                           {playingVideo === index && (
                             <>
                               <button
@@ -501,7 +579,7 @@ export default function Gallery() {
                                   e.stopPropagation();
                                   toggleVideo(index);
                                 }}
-                                className="absolute inset-0 flex items-center justify-center bg-black/10 opacity-0 transition-opacity hover:opacity-100"
+                                className="absolute inset-0 z-10 flex items-center justify-center bg-black/10 opacity-0 transition-opacity hover:opacity-100"
                               >
                                 <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/90 text-white">
                                   <FaPause />
@@ -510,16 +588,23 @@ export default function Gallery() {
 
                               <button
                                 type="button"
-                                aria-label={isMuted ? 'Unmute video' : 'Mute video'}
+                                aria-label={
+                                  isMuted ? 'Unmute video' : 'Mute video'
+                                }
                                 onClick={(e) => toggleMute(index, e)}
                                 className="absolute right-3 top-3 z-20 flex h-9 w-9 items-center justify-center border border-white/20 bg-black/70 text-white backdrop-blur-md transition-colors hover:border-primary"
                               >
-                                {isMuted ? <FaVolumeMute /> : <FaVolumeUp />}
+                                {isMuted ? (
+                                  <FaVolumeMute />
+                                ) : (
+                                  <FaVolumeUp />
+                                )}
                               </button>
                             </>
                           )}
 
-                          <div className="absolute right-3 top-3 border border-white/15 bg-black/70 px-3 py-1.5 backdrop-blur-md">
+                          {/* Video label */}
+                          <div className="pointer-events-none absolute right-3 top-3 z-10 border border-white/15 bg-black/70 px-3 py-1.5 backdrop-blur-md">
                             <span className="flex items-center gap-2 text-[9px] font-semibold uppercase tracking-wider text-white">
                               <FaVideo className="text-primary" />
                               Video
@@ -546,7 +631,9 @@ export default function Gallery() {
                             const parent = e.currentTarget.parentElement;
 
                             if (parent) {
-                              const fallback = document.createElement('div');
+                              const fallback =
+                                document.createElement('div');
+
                               fallback.className =
                                 'flex h-full w-full items-center justify-center bg-[#141414]';
 
@@ -554,6 +641,7 @@ export default function Gallery() {
                                 '<span class="text-4xl">🖼️</span>';
 
                               parent.appendChild(fallback);
+
                               e.currentTarget.style.display = 'none';
                             }
                           }}
@@ -580,13 +668,15 @@ export default function Gallery() {
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: 12 }}
                             transition={{ duration: 0.35 }}
-                            className="absolute inset-x-0 bottom-0 p-4 sm:p-6"
+                            className="absolute inset-x-0 bottom-0 z-10 p-4 sm:p-6"
                           >
                             <div className="mb-3 flex items-center gap-2">
                               <span className="h-px w-7 bg-primary" />
 
                               <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-primary">
-                                {item.type === 'video' ? 'Video' : 'Photography'}
+                                {item.type === 'video'
+                                  ? 'Video'
+                                  : 'Photography'}
                               </span>
                             </div>
 
@@ -597,6 +687,7 @@ export default function Gallery() {
                             {item.event && (
                               <p className="mt-2 flex items-center gap-2 text-xs text-gray-300">
                                 <FaCalendarAlt className="text-primary" />
+
                                 <span className="line-clamp-1">
                                   {item.event.title}
                                 </span>
@@ -618,7 +709,7 @@ export default function Gallery() {
 
                       {/* Inactive card title */}
                       {!isActive && (
-                        <div className="pointer-events-none absolute inset-x-0 bottom-0 p-3 sm:p-4">
+                        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 p-3 sm:p-4">
                           <span className="mb-1 block text-[8px] uppercase tracking-[0.15em] text-primary">
                             {item.type === 'video' ? 'Video' : 'Photo'}
                           </span>
@@ -698,28 +789,15 @@ export default function Gallery() {
               <div className="absolute -top-10 right-0 z-40 border border-white/10 bg-black/80 px-4 py-2 backdrop-blur-md sm:-top-12 sm:px-5">
                 <span className="font-mono text-xs font-semibold tracking-widest text-primary">
                   {String(activeSlide + 1).padStart(2, '0')}
+
                   <span className="mx-2 text-white/30">/</span>
+
                   {String(displayItems.length).padStart(2, '0')}
                 </span>
               </div>
             </div>
 
-            {/* Carousel indicators */}
-            <div className="mt-3 flex items-center justify-center gap-2">
-              {displayItems.map((item, index) => (
-                <button
-                  key={item.id || index}
-                  type="button"
-                  aria-label={`Show gallery item ${index + 1}`}
-                  onClick={() => setActiveSlide(index)}
-                  className={`h-1 transition-all duration-300 ${
-                    activeSlide === index
-                      ? 'w-10 bg-primary'
-                      : 'w-4 bg-white/20 hover:bg-primary/60'
-                  }`}
-                />
-              ))}
-            </div>
+            
           </>
         ) : (
           <div className="py-16 text-center">
