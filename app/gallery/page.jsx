@@ -278,9 +278,9 @@ export default function Gallery() {
           <div className="flex gap-5 border-t border-white/10 pt-4 sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0">
             {[
               { value: galleryItems.length, label: 'Total' },
-              { value: imageCount, label: 'Photos' },
+              { value: imageCount, label: 'Articles' },
               { value: videoCount, label: 'Videos' },
-              { value: articleCount, label: 'Articles' },
+              // { value: articleCount, label: 'Articles' },
             ].map((stat) => (
               <div key={stat.label}>
                 <p className="text-2xl font-semibold tabular-nums">
