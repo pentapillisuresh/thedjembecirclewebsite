@@ -245,12 +245,12 @@ export default function UpcomingEvent() {
 
             {/* Static Content - Exact text as requested */}
             <div className="mt-4 space-y-3 text-sm text-gray-300">
-              <div className="flex items-start gap-3 bg-white/5 p-3 rounded border-l-4 border-green-500">
+              {/* <div className="flex items-start gap-3 bg-white/5 p-3 rounded border-l-4 border-green-500">
                 <FaInfoCircle className="text-green-400 text-lg mt-0.5 flex-shrink-0" />
                 <p className="text-sm leading-relaxed">
                   Your ticket includes a <span className="text-green-400 font-semibold">₹300 cover charge</span>, fully redeemable on Food & Beverages (F&B).
                 </p>
-              </div>
+              </div> */}
 
               <div className="flex items-start gap-3 bg-white/5 p-3 rounded border-l-4 border-primary">
                 <FaDrum className="text-primary text-lg mt-0.5 flex-shrink-0" />

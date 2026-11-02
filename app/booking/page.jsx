@@ -867,13 +867,13 @@ export default function Booking() {
           </div>
 
           {/* Cover Charge Info (optional) */}
-          <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg">
+          {/* <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg">
             <p className="text-sm text-gray-300 leading-relaxed">
               <span className="text-primary font-semibold">ℹ️</span> Your ticket includes a{' '}
               <span className="text-white font-semibold">₹300 cover charge</span>, fully redeemable on{' '}
               <span className="text-white font-semibold">Food &amp; Beverages (F&amp;B)</span>.
             </p>
-          </div>
+          </div> */}
         </motion.div>
       </div>
     </section>
